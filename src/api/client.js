@@ -36,3 +36,5 @@ export const deleteConfiguredDocType = (id) => api.delete(`/admin/doc-types/${id
 
 export const fetchStorageSettings = () => api.get('/admin/storage-settings')
 export const updateStorageSettings = (data) => api.put('/admin/storage-settings', data)
+
+export const exportBlob = (id) => api.post(`/export/${id}`)

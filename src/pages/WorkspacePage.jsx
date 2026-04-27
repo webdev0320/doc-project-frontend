@@ -6,6 +6,7 @@ import MainCanvas from '../components/MainCanvas'
 import PropertiesPanel from '../components/PropertiesPanel'
 import axios from 'axios'
 import { ArrowLeft, Loader2, AlertCircle, Scissors, FileUp, CheckCircle } from 'lucide-react'
+import { exportBlob } from '../api/client'
 
 export default function WorkspacePage() {
   const { blobId } = useParams()
@@ -60,7 +61,7 @@ export default function WorkspacePage() {
             id="export-pdf-btn"
             onClick={async () => {
               try {
-                const { data } = await axios.post(`/api/export/${blobId}`)
+                const { data } = await exportBlob(blobId)
                 if (data.success) {
                    alert(`Success! Generated ${data.files.length} documents:\n${data.files.join('\n')}\n\nFiles have been securely pushed to your SFTP /Outbound folder.`)
                 }
