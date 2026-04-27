@@ -7,7 +7,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'https://mortgage-project-ivory.vercel.app/',
+        target: 'https://doc-proj-backend.vercel.app/',
         changeOrigin: true,
       },
     },
