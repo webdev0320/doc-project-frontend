@@ -47,7 +47,6 @@ const useAuthStore = create((set) => ({
   logout: async () => {
     await api.post('/auth/logout')
     set({ user: null })
-    window.location.href = '/login'
   }
 }))
 

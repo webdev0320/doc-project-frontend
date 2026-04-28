@@ -89,10 +89,6 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <p className="text-center text-xs text-slate-600 mt-8">
-            New to the platform?{' '}
-            <Link to="/register" className="text-indigo-400 font-semibold hover:text-indigo-300">Create account</Link>
-          </p>
         </div>
 
         {/* Footer */}

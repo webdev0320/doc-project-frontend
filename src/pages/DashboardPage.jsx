@@ -140,7 +140,10 @@ export default function DashboardPage() {
           </div>
           
           <button 
-            onClick={logout}
+            onClick={async () => {
+              await logout()
+              navigate('/login')
+            }}
             className="p-2.5 rounded-xl bg-white/5 text-slate-400 hover:bg-red-500/10 hover:text-red-400 transition-all border border-white/5"
             title="Sign Out"
           >
