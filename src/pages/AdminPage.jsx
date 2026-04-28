@@ -111,6 +111,7 @@ function TabBtn({ active, onClick, icon, label }) {
 function UserManagement() {
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [showAdd, setShowAdd] = useState(false)
   const [newUser, setNewUser] = useState({ email: '', name: '', password: '', role: 'OPERATOR' })
 
@@ -120,6 +121,9 @@ function UserManagement() {
     try {
       const { data } = await fetchUsers()
       setUsers(data.data)
+      setError(null)
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to load users')
     } finally { setLoading(false) }
   }
 
@@ -143,6 +147,12 @@ function UserManagement() {
 
   return (
     <div className="space-y-6">
+       {error && (
+         <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center gap-3">
+            <ShieldAlert className="w-4 h-4" />
+            {error}
+         </div>
+       )}
        <div className="flex items-center justify-between mb-4">
          <div className="relative w-72">
            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
