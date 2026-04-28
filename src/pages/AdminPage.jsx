@@ -160,43 +160,48 @@ function UserManagement() {
          </button>
        </div>
 
-       {showAdd && (
-         <form onSubmit={handleAdd} className="p-6 rounded-2xl bg-indigo-500/5 border border-indigo-500/10 fade-up grid grid-cols-4 gap-4 items-end">
-            <div>
-              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Email</label>
-              <input
-                required
-                type="email"
-                value={newUser.email}
-                onChange={e => setNewUser({...newUser, email: e.target.value})}
-                className="w-full bg-[#13161e] border border-white/10 rounded-xl px-4 py-2 text-sm outline-none focus:border-indigo-500"
-              />
-            </div>
-             <div>
-               <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Name</label>
-               <input
-                 type="text"
-                 value={newUser.name}
-                 onChange={e => setNewUser({...newUser, name: e.target.value})}
-                 className="w-full bg-[#13161e] border border-white/10 rounded-xl px-4 py-2 text-sm outline-none focus:border-indigo-500"
-               />
+        {showAdd && (
+          <form onSubmit={handleAdd} className="p-6 rounded-2xl bg-indigo-500/5 border border-indigo-500/10 fade-up space-y-4">
+             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Email</label>
+                  <input
+                    required
+                    type="email"
+                    value={newUser.email}
+                    onChange={e => setNewUser({...newUser, email: e.target.value})}
+                    className="w-full bg-[#13161e] border border-white/10 rounded-xl px-4 py-2 text-sm outline-none focus:border-indigo-500"
+                    placeholder="email@example.com"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Full Name</label>
+                  <input
+                    type="text"
+                    value={newUser.name}
+                    onChange={e => setNewUser({...newUser, name: e.target.value})}
+                    className="w-full bg-[#13161e] border border-white/10 rounded-xl px-4 py-2 text-sm outline-none focus:border-indigo-500"
+                    placeholder="John Doe"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Initial Password</label>
+                  <input
+                    required
+                    type="password"
+                    value={newUser.password}
+                    onChange={e => setNewUser({...newUser, password: e.target.value})}
+                    className="w-full bg-[#13161e] border border-white/10 rounded-xl px-4 py-2 text-sm outline-none focus:border-indigo-500"
+                    placeholder="••••••••"
+                  />
+                </div>
              </div>
-             <div>
-               <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Password</label>
-               <input
-                 required
-                 type="password"
-                 value={newUser.password}
-                 onChange={e => setNewUser({...newUser, password: e.target.value})}
-                 className="w-full bg-[#13161e] border border-white/10 rounded-xl px-4 py-2 text-sm outline-none focus:border-indigo-500"
-               />
-             </div>
-             <div className="flex gap-2">
-                <button type="submit" className="btn-primary flex-1">Create</button>
-                <button type="button" onClick={() => setShowAdd(false)} className="btn-ghost">Cancel</button>
+             <div className="flex justify-end gap-3 pt-2">
+                <button type="button" onClick={() => setShowAdd(false)} className="px-6 py-2 rounded-xl bg-white/5 text-slate-400 hover:bg-white/10 transition-all text-sm font-bold">Cancel</button>
+                <button type="submit" className="px-8 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-500 shadow-lg shadow-indigo-600/20 transition-all text-sm font-bold">Create User Account</button>
              </div>
           </form>
-       )}
+        )}
 
        <div className="overflow-hidden rounded-2xl border border-white/5 bg-surface-900/30">
          <table className="w-full text-left text-sm">
