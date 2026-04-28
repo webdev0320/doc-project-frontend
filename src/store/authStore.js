@@ -6,6 +6,14 @@ const api = axios.create({
   withCredentials: true
 })
 
+api.interceptors.request.use(config => {
+  const token = localStorage.getItem('token')
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
+
 const useAuthStore = create((set) => ({
   user: null,
   loading: true,
@@ -24,6 +32,9 @@ const useAuthStore = create((set) => ({
     set({ error: null })
     try {
       const { data } = await api.post('/auth/login', { email, password })
+      if (data.token) {
+        localStorage.setItem('token', data.token)
+      }
       set({ user: data.data })
       return true
     } catch (err) {
@@ -36,6 +47,9 @@ const useAuthStore = create((set) => ({
     set({ error: null })
     try {
       const { data } = await api.post('/auth/register', { email, password, name })
+      if (data.token) {
+        localStorage.setItem('token', data.token)
+      }
       set({ user: data.data })
       return true
     } catch (err) {
@@ -46,6 +60,7 @@ const useAuthStore = create((set) => ({
 
   logout: async () => {
     await api.post('/auth/logout')
+    localStorage.removeItem('token')
     set({ user: null })
   }
 }))

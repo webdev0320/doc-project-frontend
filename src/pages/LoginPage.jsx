@@ -8,14 +8,22 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
   
-  const { login, error } = useAuthStore()
+  const { login, user, error } = useAuthStore()
   const navigate = useNavigate()
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setBusy(true)
     const success = await login(email, password)
-    if (success) navigate('/')
+    if (success) {
+      // Use the latest user state from the store
+      const loggedInUser = useAuthStore.getState().user
+      if (loggedInUser?.role === 'ADMIN') {
+        navigate('/admin')
+      } else {
+        navigate('/')
+      }
+    }
     setBusy(false)
   }
 

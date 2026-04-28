@@ -148,9 +148,12 @@ function UserManagement() {
   return (
     <div className="space-y-6">
        {error && (
-         <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center gap-3">
-            <ShieldAlert className="w-4 h-4" />
-            {error}
+         <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex flex-col gap-1">
+            <div className="flex items-center gap-3">
+              <ShieldAlert className="w-4 h-4" />
+              <span>{error}</span>
+            </div>
+            <div className="ml-7 opacity-70 italic">Logged in as: {useAuthStore.getState().user?.email || 'Unknown'}</div>
          </div>
        )}
        <div className="flex items-center justify-between mb-4">
