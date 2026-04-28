@@ -194,6 +194,7 @@ function UserManagement() {
                     className="w-full bg-[#13161e] border border-white/10 rounded-xl px-4 py-2 text-sm outline-none focus:border-indigo-500"
                     placeholder="••••••••"
                   />
+                  <p className="text-[9px] text-slate-500 mt-1.5 ml-1 italic">Use 8+ characters with mixed case & symbols.</p>
                 </div>
              </div>
              <div className="flex justify-end gap-3 pt-2">
