@@ -112,7 +112,7 @@ function UserManagement() {
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
-  const [newUser, setNewUser] = useState({ email: '', name: '', role: 'OPERATOR' })
+  const [newUser, setNewUser] = useState({ email: '', name: '', password: '', role: 'OPERATOR' })
 
   useEffect(() => { load() }, [])
 
@@ -125,10 +125,14 @@ function UserManagement() {
 
   const handleAdd = async (e) => {
     e.preventDefault()
-    await createUser(newUser)
-    setNewUser({ email: '', name: '', role: 'OPERATOR' })
-    setShowAdd(false)
-    load()
+    try {
+      await createUser(newUser)
+      setNewUser({ email: '', name: '', password: '', role: 'OPERATOR' })
+      setShowAdd(false)
+      load()
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to create user')
+    }
   }
 
   const toggleStatus = async (user) => {
@@ -157,7 +161,7 @@ function UserManagement() {
        </div>
 
        {showAdd && (
-         <form onSubmit={handleAdd} className="p-6 rounded-2xl bg-indigo-500/5 border border-indigo-500/10 fade-up grid grid-cols-3 gap-4 items-end">
+         <form onSubmit={handleAdd} className="p-6 rounded-2xl bg-indigo-500/5 border border-indigo-500/10 fade-up grid grid-cols-4 gap-4 items-end">
             <div>
               <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Email</label>
               <input
@@ -168,20 +172,30 @@ function UserManagement() {
                 className="w-full bg-[#13161e] border border-white/10 rounded-xl px-4 py-2 text-sm outline-none focus:border-indigo-500"
               />
             </div>
-            <div>
-              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Name</label>
-              <input
-                type="text"
-                value={newUser.name}
-                onChange={e => setNewUser({...newUser, name: e.target.value})}
-                className="w-full bg-[#13161e] border border-white/10 rounded-xl px-4 py-2 text-sm outline-none focus:border-indigo-500"
-              />
-            </div>
-            <div className="flex gap-2">
-               <button type="submit" className="btn-primary flex-1">Create</button>
-               <button type="button" onClick={() => setShowAdd(false)} className="btn-ghost">Cancel</button>
-            </div>
-         </form>
+             <div>
+               <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Name</label>
+               <input
+                 type="text"
+                 value={newUser.name}
+                 onChange={e => setNewUser({...newUser, name: e.target.value})}
+                 className="w-full bg-[#13161e] border border-white/10 rounded-xl px-4 py-2 text-sm outline-none focus:border-indigo-500"
+               />
+             </div>
+             <div>
+               <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Password</label>
+               <input
+                 required
+                 type="password"
+                 value={newUser.password}
+                 onChange={e => setNewUser({...newUser, password: e.target.value})}
+                 className="w-full bg-[#13161e] border border-white/10 rounded-xl px-4 py-2 text-sm outline-none focus:border-indigo-500"
+               />
+             </div>
+             <div className="flex gap-2">
+                <button type="submit" className="btn-primary flex-1">Create</button>
+                <button type="button" onClick={() => setShowAdd(false)} className="btn-ghost">Cancel</button>
+             </div>
+          </form>
        )}
 
        <div className="overflow-hidden rounded-2xl border border-white/5 bg-surface-900/30">
