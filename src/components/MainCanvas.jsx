@@ -21,16 +21,18 @@ export default function MainCanvas() {
   const next = () => idx < pages.length - 1 && selectPage(pages[idx + 1].id)
 
   return (
-    <div className="flex flex-col h-full bg-[#0d0f14] relative overflow-hidden">
+    <div className="flex flex-col h-full bg-[#0d0f14] relative">
       {/* Canvas Area */}
-      <div className="flex-1 flex items-center justify-center p-12 mt-12">
+      <div className="flex-1 flex items-center justify-center mt-12 overflow-hidden">
         {page ? (
           <TransformWrapper
             initialScale={1}
-            minScale={0.2}
+            minScale={0.1}
             maxScale={5}
             panning={{ disabled: !isPanning }}
             centerOnInit
+            wheel={{ step: 0.1 }}
+            doubleClick={{ disabled: true }}
           >
             {({ zoomIn, zoomOut, resetTransform }) => (
               <>
@@ -86,7 +88,10 @@ export default function MainCanvas() {
                   </button>
                 </div>
 
-                <TransformComponent wrapperClassName="!w-full !h-full" contentClassName="!flex !items-center !justify-center">
+                <TransformComponent
+                  wrapperStyle={{ width: '100%', height: '100%' }}
+                  contentStyle={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                >
                    <div className="relative group p-4">
                       <div className="absolute -inset-1 bg-gradient-to-tr from-indigo-500/20 to-purple-500/20 blur-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
                       <div className="relative fade-up rounded-sm shadow-[0_32px_64px_-12px_rgba(0,0,0,0.8)] border border-white/5 bg-white overflow-hidden">
@@ -103,7 +108,7 @@ export default function MainCanvas() {
                               transform: `rotate(${page.rotation}deg)`,
                               transition: 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
                             }}
-                            className="block max-w-[80vw] max-h-[80vh] w-auto h-auto select-none pointer-events-none"
+                            className="block w-auto h-auto select-none pointer-events-none"
                             onLoad={() => setImgError(false)}
                             onError={() => setImgError(true)}
                           />
