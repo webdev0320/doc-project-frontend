@@ -9,7 +9,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import useWorkspaceStore from '../store/workspaceStore'
-import { Scissors, Flag, RotateCw, GripVertical, AlertTriangle } from 'lucide-react'
+import { Scissors, Flag, RotateCw, GripVertical, AlertTriangle, Trash2 } from 'lucide-react'
 
 const S3_BASE = import.meta.env.VITE_STORAGE_BASE || 'https://doc-proj-backend.vercel.app/api/storage/pages'
 
@@ -82,7 +82,7 @@ export default function ThumbnailSidebar() {
 
 function SortableItem({ page, index }) {
   const {
-    pages, selectedPageIds, selectPage, splitAfterPage
+    pages, selectedPageIds, selectPage, splitAfterPage, removePage
   } = useWorkspaceStore()
 
   const {
@@ -100,6 +100,13 @@ function SortableItem({ page, index }) {
   const isSelected = selectedPageIds.includes(page.id)
   const isLast = index === pages.length - 1
   const lowConfidence = (page.confidenceScore ?? 0) < 0.85
+
+  const handleDelete = (e) => {
+    e.stopPropagation()
+    if (window.confirm('Are you sure you want to delete this page?')) {
+      removePage(page.id)
+    }
+  }
 
   return (
     <div ref={setNodeRef} style={itemStyle} className="flex flex-col gap-1">
@@ -120,6 +127,14 @@ function SortableItem({ page, index }) {
           className="w-full aspect-[3/4] object-cover bg-surface-700 pointer-events-none"
         />
 
+        {/* Delete Button Overlay */}
+        <button
+          onClick={handleDelete}
+          className="absolute top-2 right-2 p-1.5 rounded-lg bg-red-500/90 text-white opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-red-600 active:scale-95 z-20 pointer-events-auto"
+        >
+          <Trash2 className="w-3 h-3" />
+        </button>
+
         <div className="absolute top-2 left-2 flex gap-1 pointer-events-none">
            <span className="bg-black/80 backdrop-blur-md text-white text-[10px] px-1.5 py-0.5 rounded font-mono border border-white/10">
             {index + 1}
@@ -131,8 +146,8 @@ function SortableItem({ page, index }) {
           )}
         </div>
 
-        {isSelected && (
-          <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-white flex items-center justify-center shadow-lg border border-indigo-500">
+        {isSelected && !isDragging && (
+          <div className="absolute top-2 left-2 w-4 h-4 rounded-full bg-white flex items-center justify-center shadow-lg border border-indigo-500 z-10">
              <div className="w-2 h-2 bg-indigo-600 rounded-full" />
           </div>
         )}

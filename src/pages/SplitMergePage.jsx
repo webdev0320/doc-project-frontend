@@ -2,14 +2,14 @@ import { useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { 
   ArrowLeft, Scissors, GripVertical, Check,
-  Layers, Save, Upload, Loader2, CheckCircle2, XCircle
+  Layers, Save, Upload, Loader2, CheckCircle2, XCircle, Trash2
 } from 'lucide-react'
 import useWorkspaceStore from '../store/workspaceStore'
 
 export default function SplitMergePage() {
   const { blobId } = useParams()
   const navigate = useNavigate()
-  const { blob, pages, staplePages, splitAfterPage, addPages } = useWorkspaceStore()
+  const { blob, pages, staplePages, splitAfterPage, addPages, removePage } = useWorkspaceStore()
   const fileInputRef = useRef()
 
   const [selectedIds, setSelectedIds] = useState([])
@@ -181,6 +181,17 @@ export default function SplitMergePage() {
                         <Check className="w-3 h-3 text-white stroke-[3px]" />
                       </div>
                     )}
+
+                    {/* Delete Action Overlay */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        if (window.confirm('Delete this page?')) removePage(page.id)
+                      }}
+                      className="absolute bottom-3 right-3 p-2 rounded-lg bg-red-500/90 text-white opacity-0 group-hover:opacity-100 transition-all hover:bg-red-600 shadow-xl active:scale-90"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
 
                   {/* Split Visual Indicator (Between Pages) */}

@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { fetchBlob, updatePage, splitDocument, mergeDocuments, verifyDocument, renameDocument, addBlobPages } from '../api/client'
+import { fetchBlob, updatePage, deletePage, splitDocument, mergeDocuments, verifyDocument, renameDocument, addBlobPages } from '../api/client'
 
 const useWorkspaceStore = create((set, get) => ({
   // ── State ──────────────────────────────────────────────
@@ -161,6 +161,29 @@ const useWorkspaceStore = create((set, get) => ({
     const { pages, selectedPageId } = get()
     const idx = pages.findIndex(p => p.id === selectedPageId)
     if (idx > 0) set({ selectedPageId: pages[idx - 1].id, selectedPageIds: [pages[idx - 1].id] })
+  },
+
+  removePage: async (pageId) => {
+    try {
+      await deletePage(pageId)
+      const { pages, selectedPageId } = get()
+      const newPages = pages.filter(p => p.id !== pageId)
+      
+      let nextSelectedId = selectedPageId
+      if (selectedPageId === pageId) {
+        const idx = pages.findIndex(p => p.id === pageId)
+        nextSelectedId = newPages[idx]?.id || newPages[idx - 1]?.id || null
+      }
+
+      set({ 
+        pages: newPages, 
+        selectedPageId: nextSelectedId,
+        selectedPageIds: nextSelectedId ? [nextSelectedId] : []
+      })
+    } catch (err) {
+      console.error('Delete page failed', err)
+      throw err
+    }
   },
 
   addPages: async (files, onProgress) => {
