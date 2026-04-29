@@ -43,6 +43,15 @@ export const mergeDocuments = (payload) => api.post('/documents/merge', payload)
 export const verifyDocument = (id, payload) => api.patch(`/documents/${id}/verify`, payload)
 export const renameDocument = (id, payload) => api.patch(`/documents/${id}/rename`, payload)
 
+export const addBlobPages = (blobId, file, onProgress) => {
+  const form = new FormData()
+  form.append('file', file)
+  return api.post(`/blobs/${blobId}/add-pages`, form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    onUploadProgress: (e) => onProgress && onProgress(Math.round((e.loaded / e.total) * 100)),
+  })
+}
+
 // Admin
 export const fetchUsers = () => api.get('/admin/users')
 export const createUser = (data) => api.post('/admin/users', data) // Admin-only creation

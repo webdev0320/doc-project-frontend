@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { fetchBlob, updatePage, splitDocument, mergeDocuments, verifyDocument, renameDocument } from '../api/client'
+import { fetchBlob, updatePage, splitDocument, mergeDocuments, verifyDocument, renameDocument, addBlobPages } from '../api/client'
 
 const useWorkspaceStore = create((set, get) => ({
   // ── State ──────────────────────────────────────────────
@@ -161,6 +161,31 @@ const useWorkspaceStore = create((set, get) => ({
     const { pages, selectedPageId } = get()
     const idx = pages.findIndex(p => p.id === selectedPageId)
     if (idx > 0) set({ selectedPageId: pages[idx - 1].id, selectedPageIds: [pages[idx - 1].id] })
+  },
+
+  addPages: async (files, onProgress) => {
+    const { blob, loadBlob } = get()
+    if (!blob || files.length === 0) return
+
+    for (let i = 0; i < files.length; i++) {
+      await addBlobPages(blob.id, files[i], (pct) => {
+        // Weight progress per file: file i covers [i/n, (i+1)/n] of total
+        const overall = Math.round(((i + pct / 100) / files.length) * 100)
+        onProgress && onProgress(overall)
+      })
+    }
+
+    // Poll until the engine marks the blob COMPLETED again
+    const poll = async (attempts = 0) => {
+      if (attempts > 40) return // max ~2 min
+      const { data } = await fetchBlob(blob.id)
+      if (data.data.status === 'COMPLETED') {
+        await loadBlob(blob.id)
+      } else {
+        setTimeout(() => poll(attempts + 1), 3000)
+      }
+    }
+    poll()
   },
 }))
 

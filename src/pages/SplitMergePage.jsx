@@ -1,8 +1,8 @@
-import { useState, useMemo, useRef } from 'react'
+import { useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { 
-  ArrowLeft, Scissors, GripVertical, Check, X, 
-  RotateCcw, Maximize2, Layers, Trash2, Save 
+  ArrowLeft, Scissors, GripVertical, Check,
+  Layers, Save, Upload, Loader2, CheckCircle2, XCircle
 } from 'lucide-react'
 import useWorkspaceStore from '../store/workspaceStore'
 
@@ -11,9 +11,12 @@ export default function SplitMergePage() {
   const navigate = useNavigate()
   const { blob, pages, staplePages, splitAfterPage, addPages } = useWorkspaceStore()
   const fileInputRef = useRef()
-  
+
   const [selectedIds, setSelectedIds] = useState([])
   const [hoveredSplitIndex, setHoveredSplitIndex] = useState(null)
+  const [uploadState, setUploadState] = useState('idle') // idle | uploading | processing | done | error
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const [uploadError, setUploadError] = useState('')
 
   const toggleSelection = (id) => {
     setSelectedIds(prev => 
@@ -34,9 +37,26 @@ export default function SplitMergePage() {
   const handleFileChange = async (e) => {
     const files = Array.from(e.target.files)
     if (files.length === 0) return
-    alert("Adding pages to an existing blob is not supported by the backend yet.")
     e.target.value = ''
+
+    setUploadState('uploading')
+    setUploadProgress(0)
+    setUploadError('')
+
+    try {
+      await addPages(files, (pct) => {
+        setUploadProgress(pct)
+        // Once upload hits 100%, engine takes over
+        if (pct >= 100) setUploadState('processing')
+      })
+      setUploadState('done')
+      setTimeout(() => setUploadState('idle'), 2500)
+    } catch (err) {
+      setUploadError(err?.response?.data?.error || err.message || 'Upload failed')
+      setUploadState('error')
+    }
   }
+
 
   return (
     <div className="h-screen flex flex-col bg-[#0d0f14] text-slate-300 overflow-hidden font-sans">
@@ -192,23 +212,82 @@ export default function SplitMergePage() {
               )
             })}
 
-            {/* Empty State / Add Page Mock */}
-            <div 
-              onClick={() => fileInputRef.current?.click()}
-              className="aspect-[3/4] rounded-xl border-2 border-dashed border-white/5 flex flex-col items-center justify-center gap-3 bg-white/2 hover:bg-white/5 transition-colors cursor-pointer group"
+            {/* Add Pages — Fully Functional */}
+            <div
+              onClick={() => uploadState === 'idle' && fileInputRef.current?.click()}
+              className={`relative aspect-[3/4] rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-3 transition-all group
+                ${uploadState === 'idle'
+                  ? 'border-white/10 hover:border-indigo-500/50 hover:bg-indigo-500/5 cursor-pointer'
+                  : 'border-indigo-500/30 bg-indigo-500/5 cursor-default'}
+              `}
             >
-              <input 
-                type="file" 
-                multiple 
-                accept="image/*,application/pdf" 
-                className="hidden" 
+              <input
+                type="file"
+                multiple
+                accept="image/*,application/pdf"
+                className="hidden"
                 ref={fileInputRef}
                 onChange={handleFileChange}
               />
-              <div className="p-3 rounded-full bg-white/5 group-hover:bg-white/10 transition-colors">
-                <Layers className="w-6 h-6 text-slate-600 group-hover:text-slate-400" />
-              </div>
-              <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">Add Pages</span>
+
+              {uploadState === 'idle' && (
+                <>
+                  <div className="p-3 rounded-full bg-white/5 group-hover:bg-indigo-500/10 transition-colors">
+                    <Layers className="w-6 h-6 text-slate-600 group-hover:text-indigo-400 transition-colors" />
+                  </div>
+                  <span className="text-[10px] font-bold text-slate-600 group-hover:text-indigo-400 uppercase tracking-widest transition-colors">Add Pages</span>
+                  <span className="text-[9px] text-slate-700 font-mono">PDF or Image</span>
+                </>
+              )}
+
+              {uploadState === 'uploading' && (
+                <>
+                  <div className="p-3 rounded-full bg-indigo-500/10">
+                    <Upload className="w-6 h-6 text-indigo-400 animate-bounce" />
+                  </div>
+                  <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Uploading...</span>
+                  <div className="w-3/4 h-1 bg-white/5 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-indigo-500 rounded-full transition-all duration-300"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                  <span className="text-[9px] font-mono text-indigo-400">{uploadProgress}%</span>
+                </>
+              )}
+
+              {uploadState === 'processing' && (
+                <>
+                  <div className="p-3 rounded-full bg-amber-500/10">
+                    <Loader2 className="w-6 h-6 text-amber-400 animate-spin" />
+                  </div>
+                  <span className="text-[10px] font-bold text-amber-400 uppercase tracking-widest">Processing...</span>
+                  <span className="text-[9px] text-amber-400/60 font-mono text-center px-2">Engine classifying pages</span>
+                </>
+              )}
+
+              {uploadState === 'done' && (
+                <>
+                  <div className="p-3 rounded-full bg-emerald-500/10">
+                    <CheckCircle2 className="w-6 h-6 text-emerald-400" />
+                  </div>
+                  <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">Pages Added!</span>
+                </>
+              )}
+
+              {uploadState === 'error' && (
+                <>
+                  <div className="p-3 rounded-full bg-red-500/10">
+                    <XCircle className="w-6 h-6 text-red-400" />
+                  </div>
+                  <span className="text-[10px] font-bold text-red-400 uppercase tracking-widest">Failed</span>
+                  <span className="text-[9px] text-red-400/60 font-mono text-center px-2 truncate max-w-full">{uploadError}</span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setUploadState('idle') }}
+                    className="text-[9px] text-red-400 underline"
+                  >Retry</button>
+                </>
+              )}
             </div>
           </div>
         </div>
