@@ -22,58 +22,6 @@ export default function MainCanvas() {
 
   return (
     <div className="flex flex-col h-full bg-[#0d0f14] relative overflow-hidden">
-      {/* Toolbar - Floating & Glassy */}
-      <div className="absolute top-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 px-4 py-2 glass rounded-2xl shadow-2xl border-white/10">
-        <button className="btn-ghost p-2" onClick={prev} disabled={idx <= 0}>
-          <ChevronLeft className="w-4 h-4" />
-        </button>
-
-        <div className="h-6 w-px bg-white/10 mx-2" />
-
-        <button className={`p-2 rounded-xl transition-all ${isPanning ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-white/5'}`} onClick={() => setIsPanning(true)}>
-          <Hand className="w-4 h-4" />
-        </button>
-        <button className={`p-2 rounded-xl transition-all ${!isPanning ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-white/5'}`} onClick={() => setIsPanning(false)}>
-          <MousePointer2 className="w-4 h-4" />
-        </button>
-
-        <div className="h-6 w-px bg-white/10 mx-2" />
-
-        <button 
-          id="zoom-out" 
-          className="btn-ghost p-2 text-slate-400 hover:text-white"
-          onClick={() => zoomOut()}
-        >
-          <ZoomOut className="w-4 h-4" />
-        </button>
-        <button 
-          id="zoom-in" 
-          className="btn-ghost p-2 text-slate-400 hover:text-white"
-          onClick={() => zoomIn()}
-        >
-          <ZoomIn className="w-4 h-4" />
-        </button>
-
-        <div className="h-6 w-px bg-white/10 mx-2" />
-
-        <button className="btn-ghost p-2 text-slate-400 hover:text-white" onClick={() => rotatePage(page?.id)}>
-          <RotateCcw className="w-4 h-4" />
-        </button>
-
-        <button 
-          className="btn-ghost p-2 text-slate-400 hover:text-white"
-          onClick={() => window.open(`${S3_BASE}/${page?.s3Path}`, '_blank')}
-        >
-          <Download className="w-4 h-4" />
-        </button>
-
-        <div className="h-6 w-px bg-white/10 mx-2" />
-
-        <button className="btn-ghost p-2" onClick={next} disabled={idx >= pages.length - 1}>
-          <ChevronRight className="w-4 h-4" />
-        </button>
-      </div>
-
       {/* Canvas Area */}
       <div className="flex-1 flex items-center justify-center p-12 mt-12">
         {page ? (
@@ -81,13 +29,63 @@ export default function MainCanvas() {
             initialScale={1}
             minScale={0.2}
             maxScale={5}
-            disabled={!isPanning}
+            panning={{ disabled: !isPanning }}
             centerOnInit
           >
             {({ zoomIn, zoomOut, resetTransform }) => (
               <>
-                {/* We map the toolbar buttons to these internally if needed, but for now we rely on the library handles */}
-                {/* Direct access to buttons for external control requires refs, but library handles +/- keys and scroll automatically */}
+                {/* Toolbar - Floating & Glassy */}
+                <div className="absolute top-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 px-4 py-2 glass rounded-2xl shadow-2xl border-white/10">
+                  <button className="btn-ghost p-2" onClick={prev} disabled={idx <= 0}>
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+
+                  <div className="h-6 w-px bg-white/10 mx-2" />
+
+                  <button className={`p-2 rounded-xl transition-all ${isPanning ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-white/5'}`} onClick={() => setIsPanning(true)}>
+                    <Hand className="w-4 h-4" />
+                  </button>
+                  <button className={`p-2 rounded-xl transition-all ${!isPanning ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-white/5'}`} onClick={() => setIsPanning(false)}>
+                    <MousePointer2 className="w-4 h-4" />
+                  </button>
+
+                  <div className="h-6 w-px bg-white/10 mx-2" />
+
+                  <button 
+                    id="zoom-out" 
+                    className="btn-ghost p-2 text-slate-400 hover:text-white"
+                    onClick={() => zoomOut()}
+                  >
+                    <ZoomOut className="w-4 h-4" />
+                  </button>
+                  <button 
+                    id="zoom-in" 
+                    className="btn-ghost p-2 text-slate-400 hover:text-white"
+                    onClick={() => zoomIn()}
+                  >
+                    <ZoomIn className="w-4 h-4" />
+                  </button>
+
+                  <div className="h-6 w-px bg-white/10 mx-2" />
+
+                  <button className="btn-ghost p-2 text-slate-400 hover:text-white" onClick={() => rotatePage(page?.id)}>
+                    <RotateCcw className="w-4 h-4" />
+                  </button>
+
+                  <button 
+                    className="btn-ghost p-2 text-slate-400 hover:text-white"
+                    onClick={() => window.open(`${S3_BASE}/${page?.s3Path}`, '_blank')}
+                  >
+                    <Download className="w-4 h-4" />
+                  </button>
+
+                  <div className="h-6 w-px bg-white/10 mx-2" />
+
+                  <button className="btn-ghost p-2" onClick={next} disabled={idx >= pages.length - 1}>
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+
                 <TransformComponent wrapperClassName="!w-full !h-full" contentClassName="!flex !items-center !justify-center">
                    <div className="relative group p-4">
                       <div className="absolute -inset-1 bg-gradient-to-tr from-indigo-500/20 to-purple-500/20 blur-2xl opacity-0 group-hover:opacity-100 transition-opacity" />

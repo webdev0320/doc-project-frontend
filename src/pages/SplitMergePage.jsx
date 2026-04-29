@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { 
   ArrowLeft, Scissors, GripVertical, Check, X, 
@@ -9,7 +9,8 @@ import useWorkspaceStore from '../store/workspaceStore'
 export default function SplitMergePage() {
   const { blobId } = useParams()
   const navigate = useNavigate()
-  const { blob, pages, staplePages, splitAfterPage } = useWorkspaceStore()
+  const { blob, pages, staplePages, splitAfterPage, addPages } = useWorkspaceStore()
+  const fileInputRef = useRef()
   
   const [selectedIds, setSelectedIds] = useState([])
   const [hoveredSplitIndex, setHoveredSplitIndex] = useState(null)
@@ -28,6 +29,13 @@ export default function SplitMergePage() {
 
   const handleSplit = (pageId) => {
     splitAfterPage(pageId)
+  }
+
+  const handleFileChange = async (e) => {
+    const files = Array.from(e.target.files)
+    if (files.length === 0) return
+    alert("Adding pages to an existing blob is not supported by the backend yet.")
+    e.target.value = ''
   }
 
   return (
@@ -185,7 +193,18 @@ export default function SplitMergePage() {
             })}
 
             {/* Empty State / Add Page Mock */}
-            <div className="aspect-[3/4] rounded-xl border-2 border-dashed border-white/5 flex flex-col items-center justify-center gap-3 bg-white/2 hover:bg-white/5 transition-colors cursor-pointer group">
+            <div 
+              onClick={() => fileInputRef.current?.click()}
+              className="aspect-[3/4] rounded-xl border-2 border-dashed border-white/5 flex flex-col items-center justify-center gap-3 bg-white/2 hover:bg-white/5 transition-colors cursor-pointer group"
+            >
+              <input 
+                type="file" 
+                multiple 
+                accept="image/*,application/pdf" 
+                className="hidden" 
+                ref={fileInputRef}
+                onChange={handleFileChange}
+              />
               <div className="p-3 rounded-full bg-white/5 group-hover:bg-white/10 transition-colors">
                 <Layers className="w-6 h-6 text-slate-600 group-hover:text-slate-400" />
               </div>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import {
-  fetchUsers, createUser, updateUser, deleteUser,
+  fetchUsers, createUser, updateUser, deleteUser, resetPassword,
   fetchConfiguredDocTypes, createConfiguredDocType, deleteConfiguredDocType,
   fetchStorageSettings, updateStorageSettings
 } from '../api/client'
@@ -10,6 +10,7 @@ import {
   ArrowLeft, Search, Mail, Server, Cloud
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import useAuthStore from '../store/authStore'
 
 export default function AdminPage() {
   const navigate = useNavigate()
@@ -66,19 +67,19 @@ export default function AdminPage() {
 
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto">
-        <header className="p-8 border-b border-white/5 flex items-center justify-between">
-           <div>
-             <h1 className="text-2xl font-bold text-white">
-               {activeTab === 'users' ? 'Manage Users' : 'Managed Document Types'}
-             </h1>
-             <p className="text-sm text-slate-500 mt-1">
-               {activeTab === 'users'
-                 ? 'Control access levels and operator status.'
-                 : activeTab === 'doctypes' ? 'Configure classifications available for the AI and HITL workforce.'
-                 : 'Configure global system parameters including storage providers.'}
-             </p>
-           </div>
-        </header>
+         <header className="p-8 border-b border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex-1 min-w-0">
+              <h1 className="text-2xl font-bold text-white truncate">
+                {activeTab === 'users' ? 'Manage Users' : 'Managed Document Types'}
+              </h1>
+              <p className="text-sm text-slate-500 mt-1 max-w-2xl">
+                {activeTab === 'users'
+                  ? 'Control access levels and operator status.'
+                  : activeTab === 'doctypes' ? 'Configure classifications available for the AI and HITL workforce.'
+                  : 'Configure global system parameters including storage providers.'}
+              </p>
+            </div>
+         </header>
 
         <div className="p-8">
           {activeTab === 'users' && <UserManagement />}
@@ -114,6 +115,10 @@ function UserManagement() {
   const [error, setError] = useState(null)
   const [showAdd, setShowAdd] = useState(false)
   const [newUser, setNewUser] = useState({ email: '', name: '', password: '', role: 'OPERATOR' })
+  const [searchQuery, setSearchQuery] = useState('')
+  const [resettingUser, setResettingUser] = useState(null)
+  const [newPassword, setNewPassword] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => { load() }, [])
 
@@ -127,8 +132,26 @@ function UserManagement() {
     } finally { setLoading(false) }
   }
 
+  const validatePassword = (pwd) => {
+    if (pwd.length < 8) return "Password must be at least 8 characters long."
+    if (!/[A-Z]/.test(pwd)) return "Password must contain at least one uppercase letter."
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(pwd)) return "Password must contain at least one special character."
+    return null
+  }
+
+  const [pwdErrorState, setPwdErrorState] = useState('')
+
   const handleAdd = async (e) => {
     e.preventDefault()
+    
+    const pwdError = validatePassword(newUser.password)
+    if (pwdError) {
+      setPwdErrorState(pwdError)
+      return
+    }
+    setPwdErrorState('')
+
+    setIsSubmitting(true)
     try {
       await createUser(newUser)
       setNewUser({ email: '', name: '', password: '', role: 'OPERATOR' })
@@ -136,6 +159,26 @@ function UserManagement() {
       load()
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to create user')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleResetPassword = async (e) => {
+    e.preventDefault()
+    const pwdError = validatePassword(newPassword)
+    if (pwdError) {
+      alert(pwdError)
+      return
+    }
+
+    try {
+      await resetPassword(resettingUser.id, newPassword)
+      alert('Password updated successfully')
+      setResettingUser(null)
+      setNewPassword('')
+    } catch (err) {
+      alert('Failed to reset password')
     }
   }
 
@@ -157,14 +200,16 @@ function UserManagement() {
          </div>
        )}
        <div className="flex items-center justify-between mb-4">
-         <div className="relative w-72">
-           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-           <input
-             type="text"
-             placeholder="Find user..."
-             className="w-full bg-surface-800/50 border border-white/5 rounded-xl pl-10 pr-4 py-2 text-sm focus:border-indigo-500/50 outline-none"
-           />
-         </div>
+          <div className="relative w-full max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+            <input
+              type="text"
+              placeholder="Find user by name or email..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="w-full bg-surface-800/50 border border-white/5 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:border-indigo-500/50 outline-none transition-all"
+            />
+          </div>
          <button
           onClick={() => setShowAdd(true)}
           className="btn-primary"
@@ -204,17 +249,50 @@ function UserManagement() {
                     type="password"
                     value={newUser.password}
                     onChange={e => setNewUser({...newUser, password: e.target.value})}
-                    className="w-full bg-[#13161e] border border-white/10 rounded-xl px-4 py-2 text-sm outline-none focus:border-indigo-500"
+                    className={`w-full bg-[#13161e] border ${pwdErrorState ? 'border-red-500' : 'border-white/10'} rounded-xl px-4 py-2 text-sm outline-none focus:border-indigo-500`}
                     placeholder="••••••••"
                   />
-                  <p className="text-[9px] text-slate-500 mt-1.5 ml-1 italic">Use 8+ characters with mixed case & symbols.</p>
+                  {pwdErrorState ? (
+                    <p className="text-[9px] text-red-400 mt-1.5 ml-1">{pwdErrorState}</p>
+                  ) : (
+                    <p className="text-[9px] text-slate-500 mt-1.5 ml-1 italic">Use 8+ characters with mixed case & symbols.</p>
+                  )}
                 </div>
              </div>
              <div className="flex justify-end gap-3 pt-2">
                 <button type="button" onClick={() => setShowAdd(false)} className="px-6 py-2 rounded-xl bg-white/5 text-slate-400 hover:bg-white/10 transition-all text-sm font-bold">Cancel</button>
-                <button type="submit" className="px-8 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-500 shadow-lg shadow-indigo-600/20 transition-all text-sm font-bold">Create User Account</button>
+                <button type="submit" disabled={isSubmitting} className="px-8 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-500 shadow-lg shadow-indigo-600/20 transition-all text-sm font-bold disabled:opacity-50">
+                  {isSubmitting ? 'Creating...' : 'Create User Account'}
+                </button>
              </div>
           </form>
+        )}
+
+        {resettingUser && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+             <form onSubmit={handleResetPassword} className="w-full max-w-md bg-[#13161e] border border-white/10 rounded-2xl p-8 shadow-2xl fade-up space-y-6">
+                <div>
+                   <h3 className="text-xl font-bold text-white mb-1">Reset Password</h3>
+                   <p className="text-xs text-slate-500">Updating password for <span className="text-indigo-400">{resettingUser.email}</span></p>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">New Password</label>
+                  <input
+                    required
+                    type="password"
+                    value={newPassword}
+                    onChange={e => setNewPassword(e.target.value)}
+                    className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-500"
+                    placeholder="••••••••"
+                  />
+                  <p className="text-[9px] text-slate-500 mt-2 italic">Must be 8+ chars with symbols.</p>
+                </div>
+                <div className="flex gap-3 pt-2">
+                   <button type="button" onClick={() => setResettingUser(null)} className="flex-1 py-3 rounded-xl bg-white/5 text-slate-400 hover:bg-white/10 font-bold text-sm">Cancel</button>
+                   <button type="submit" className="flex-1 py-3 rounded-xl bg-indigo-600 text-white hover:bg-indigo-500 font-bold text-sm shadow-lg shadow-indigo-600/20">Update Password</button>
+                </div>
+             </form>
+          </div>
         )}
 
        <div className="overflow-hidden rounded-2xl border border-white/5 bg-surface-900/30">
@@ -229,7 +307,14 @@ function UserManagement() {
              </tr>
            </thead>
            <tbody className="divide-y divide-white/5">
-             {users.map(user => (
+             {users
+               .filter(u => {
+                 const q = searchQuery.toLowerCase()
+                 const eMatch = u.email ? u.email.toLowerCase().includes(q) : false
+                 const nMatch = u.name ? u.name.toLowerCase().includes(q) : false
+                 return eMatch || nMatch
+               })
+               .map(user => (
                <tr key={user.id} className="group hover:bg-white/5 transition-colors">
                  <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
@@ -270,6 +355,13 @@ function UserManagement() {
                      >
                         {user.status === 'ACTIVE' ? <XCircle className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
                      </button>
+                      <button 
+                        onClick={() => { setResettingUser(user); setNewPassword('') }} 
+                        className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-white transition-colors"
+                        title="Reset Password"
+                      >
+                         <Settings className="w-4 h-4" />
+                      </button>
                      <button 
                        onClick={() => { if(confirm('Delete user?')) deleteUser(user.id).then(load) }} 
                        className="p-2 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"

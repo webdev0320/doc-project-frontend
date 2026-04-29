@@ -13,6 +13,17 @@ api.interceptors.request.use(config => {
   return config
 })
 
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      localStorage.removeItem('token')
+      window.location.href = '/login'
+    }
+    return Promise.reject(error)
+  }
+)
+
 export const uploadBlob = (file, onProgress) => {
   const form = new FormData()
   form.append('file', file)
@@ -34,8 +45,9 @@ export const renameDocument = (id, payload) => api.patch(`/documents/${id}/renam
 
 // Admin
 export const fetchUsers = () => api.get('/admin/users')
-export const createUser = (data) => api.post('/auth/register', data) // For creating user accounts
+export const createUser = (data) => api.post('/admin/users', data) // Admin-only creation
 export const updateUser = (id, data) => api.patch(`/admin/users/${id}`, data)
+export const resetPassword = (id, password) => api.post(`/admin/users/${id}/reset-password`, { password })
 export const deleteUser = (id) => api.delete(`/admin/users/${id}`)
 
 export const fetchConfiguredDocTypes = () => api.get('/admin/doc-types')
