@@ -5,15 +5,21 @@ import ThumbnailSidebar from '../components/ThumbnailSidebar'
 import MainCanvas from '../components/MainCanvas'
 import PropertiesPanel from '../components/PropertiesPanel'
 import axios from 'axios'
-import { ArrowLeft, Loader2, AlertCircle, Scissors, FileUp, CheckCircle } from 'lucide-react'
-import { exportBlob } from '../api/client'
+import { ArrowLeft, Loader2, AlertCircle, Scissors, FileUp, CheckCircle, List, Check, AlertTriangle, ChevronDown } from 'lucide-react'
+import { exportBlob, fetchConfiguredDocTypes } from '../api/client'
+import { useState } from 'react'
 
 export default function WorkspacePage() {
   const { blobId } = useParams()
   const navigate = useNavigate()
-  const { blob, loading, error, loadBlob } = useWorkspaceStore()
+  const { blob, documents, loading, error, loadBlob, selectedDocumentId } = useWorkspaceStore()
+  const [availableTypes, setAvailableTypes] = useState([])
+  const [showChecklist, setShowChecklist] = useState(false)
 
-  useEffect(() => { loadBlob(blobId) }, [blobId])
+  useEffect(() => { 
+    loadBlob(blobId)
+    fetchConfiguredDocTypes().then(({ data }) => setAvailableTypes(data.data))
+  }, [blobId])
 
   if (loading) {
     return (
@@ -49,31 +55,47 @@ export default function WorkspacePage() {
         <span className="text-sm font-medium text-white truncate">{blob?.filename}</span>
         <span className="text-xs text-slate-500">{blob?.pageCount} pages</span>
         <div className="ml-auto flex items-center gap-4">
-          <button 
-            onClick={() => navigate(`/workspace/${blobId}/split`)}
-            className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white text-xs font-bold rounded-lg border border-white/10 transition-all active:scale-95"
-          >
-            <Scissors className="w-3.5 h-3.5 text-indigo-400" />
-            Manage Flow
-          </button>
-          
-          <button 
-            id="export-pdf-btn"
-            onClick={async () => {
-              try {
-                const { data } = await exportBlob(blobId)
-                if (data.success) {
-                   alert(`Success! Generated ${data.files.length} documents:\n${data.files.join('\n')}\n\nFiles have been securely pushed to your SFTP /Outbound folder.`)
-                }
-              } catch (e) {
-                alert('Export failed. Check engine logs.')
-              }
-            }}
-            className="flex items-center gap-2 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg shadow-lg shadow-emerald-600/20 transition-all active:scale-95"
-          >
-            <FileUp className="w-3.5 h-3.5" />
-            Export Final
-          </button>
+          <div className="relative">
+            <button 
+              onClick={() => setShowChecklist(!showChecklist)}
+              className="flex items-center gap-2 px-3 py-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 text-xs font-bold rounded-lg border border-indigo-500/20 transition-all active:scale-95"
+            >
+              <List className="w-3.5 h-3.5" />
+              Checklist
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showChecklist ? 'rotate-180' : ''}`} />
+            </button>
+
+            {showChecklist && (
+              <div className="absolute top-full right-0 mt-2 w-80 bg-[#13161e] border border-white/10 rounded-2xl shadow-2xl z-50 p-4 fade-up">
+                <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+                  <List className="w-3.5 h-3.5" /> Document Checklist
+                </h3>
+                
+                {(() => {
+                  const doc = documents.find(d => d.id === selectedDocumentId)
+                  if (!doc) return <p className="text-[10px] text-slate-600 italic">Select a document to see its checklist.</p>
+                  
+                  const config = availableTypes.find(t => t.code === doc.documentType)
+                  const items = config?.checklists || []
+
+                  if (items.length === 0) return <p className="text-[10px] text-slate-600 italic">No checklist defined for {doc.documentType}.</p>
+
+                  return (
+                    <div className="space-y-2">
+                      {items.map((item, idx) => (
+                        <div key={idx} className="flex items-start gap-3 p-2.5 rounded-xl bg-white/5 border border-white/5">
+                          <div className="mt-0.5 shrink-0 w-4 h-4 rounded border border-white/20 flex items-center justify-center">
+                            {/* In a real app, this would be tied to the verified state or a persistent checklist state */}
+                          </div>
+                          <span className="text-[11px] text-slate-300 leading-tight">{item}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )
+                })()}
+              </div>
+            )}
+          </div>
 
           <StatusBadge status={blob?.status} />
         </div>

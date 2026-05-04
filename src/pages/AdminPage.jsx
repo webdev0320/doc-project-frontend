@@ -1,13 +1,12 @@
-import { useState, useEffect } from 'react'
 import {
   fetchUsers, createUser, updateUser, deleteUser, resetPassword,
-  fetchConfiguredDocTypes, createConfiguredDocType, deleteConfiguredDocType,
+  fetchConfiguredDocTypes, createConfiguredDocType, updateConfiguredDocType, deleteConfiguredDocType,
   fetchStorageSettings, updateStorageSettings
 } from '../api/client'
 import {
   Users, FileStack, ShieldAlert, Plus, Trash2,
   CheckCircle, XCircle, ChevronRight, Settings,
-  ArrowLeft, Search, Mail, Server, Cloud
+  ArrowLeft, Search, Mail, Server, Cloud, Edit2, List, Check, X
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import useAuthStore from '../store/authStore'
@@ -386,7 +385,9 @@ function DocTypeManagement() {
   const [types, setTypes] = useState([])
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
-  const [newType, setNewType] = useState({ code: '', label: '', isCommon: true })
+  const [newType, setNewType] = useState({ code: '', label: '', isCommon: true, checklists: [] })
+  const [editingType, setEditingType] = useState(null)
+  const [newChecklistItem, setNewChecklistItem] = useState('')
 
   useEffect(() => { load() }, [])
 
@@ -400,8 +401,15 @@ function DocTypeManagement() {
   const handleAdd = async (e) => {
     e.preventDefault()
     await createConfiguredDocType(newType)
-    setNewType({ code: '', label: '', isCommon: true })
+    setNewType({ code: '', label: '', isCommon: true, checklists: [] })
     setShowAdd(false)
+    load()
+  }
+
+  const handleUpdate = async (e) => {
+    e.preventDefault()
+    await updateConfiguredDocType(editingType.id, editingType)
+    setEditingType(null)
     load()
   }
 
@@ -412,43 +420,172 @@ function DocTypeManagement() {
     }
   }
 
+  const addChecklistItem = (isEditing) => {
+    if (!newChecklistItem.trim()) return
+    if (isEditing) {
+      setEditingType({
+        ...editingType,
+        checklists: [...(editingType.checklists || []), newChecklistItem.trim()]
+      })
+    } else {
+      setNewType({
+        ...newType,
+        checklists: [...(newType.checklists || []), newChecklistItem.trim()]
+      })
+    }
+    setNewChecklistItem('')
+  }
+
+  const removeChecklistItem = (index, isEditing) => {
+    if (isEditing) {
+      const items = [...editingType.checklists]
+      items.splice(index, 1)
+      setEditingType({ ...editingType, checklists: items })
+    } else {
+      const items = [...newType.checklists]
+      items.splice(index, 1)
+      setNewType({ ...newType, checklists: items })
+    }
+  }
+
   return (
      <div className="space-y-6">
         <div className="flex items-center justify-between">
-           <p className="text-sm text-slate-500">Configure labels used by the engine's classifier.</p>
+           <p className="text-sm text-slate-500">Configure labels and checklists used by the engine and users.</p>
            <button onClick={() => setShowAdd(true)} className="btn-primary">
              <Plus className="w-4 h-4" /> Add Classification
            </button>
         </div>
 
         {showAdd && (
-         <form onSubmit={handleAdd} className="p-6 rounded-2xl bg-indigo-500/5 border border-indigo-500/10 fade-up grid grid-cols-3 gap-4 items-end">
-            <div>
-              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Internal Code</label>
-              <input
-                required
-                placeholder="e.g. W2_2023"
-                value={newType.code}
-                onChange={e => setNewType({...newType, code: e.target.value})}
-                className="w-full bg-[#13161e] border border-white/10 rounded-xl px-4 py-2 text-sm outline-none focus:border-indigo-500"
-              />
-            </div>
-            <div>
-              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Display Label</label>
-              <input
-                required
-                placeholder="e.g. W-2 Annual Summary"
-                value={newType.label}
-                onChange={e => setNewType({...newType, label: e.target.value})}
-                className="w-full bg-[#13161e] border border-white/10 rounded-xl px-4 py-2 text-sm outline-none focus:border-indigo-500"
-              />
-            </div>
-            <div className="flex gap-2">
-               <button type="submit" className="btn-primary flex-1">Add</button>
-               <button type="button" onClick={() => setShowAdd(false)} className="btn-ghost">Cancel</button>
-            </div>
-         </form>
-       )}
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <form onSubmit={handleAdd} className="w-full max-w-2xl bg-[#13161e] border border-white/10 rounded-2xl p-8 shadow-2xl space-y-6 overflow-y-auto max-h-[90vh]">
+               <div>
+                  <h3 className="text-xl font-bold text-white mb-1">Add Document Type</h3>
+                  <p className="text-xs text-slate-500">Define a new document classification and its required checklist items.</p>
+               </div>
+               
+               <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Internal Code</label>
+                    <input
+                      required
+                      placeholder="e.g. ASSETS_401K"
+                      value={newType.code}
+                      onChange={e => setNewType({...newType, code: e.target.value})}
+                      className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Display Label</label>
+                    <input
+                      required
+                      placeholder="e.g. Assets: Investment/401(k) Summary"
+                      value={newType.label}
+                      onChange={e => setNewType({...newType, label: e.target.value})}
+                      className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-500"
+                    />
+                  </div>
+               </div>
+
+               <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Checklist Items</label>
+                  <div className="flex gap-2 mb-3">
+                    <input
+                      placeholder="Enter a checklist requirement..."
+                      value={newChecklistItem}
+                      onChange={e => setNewChecklistItem(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addChecklistItem(false))}
+                      className="flex-1 bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-indigo-500"
+                    />
+                    <button type="button" onClick={() => addChecklistItem(false)} className="px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold">Add</button>
+                  </div>
+                  <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
+                    {newType.checklists?.map((item, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5">
+                        <span className="text-sm text-slate-300">{item}</span>
+                        <button type="button" onClick={() => removeChecklistItem(idx, false)} className="text-slate-500 hover:text-red-400">
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                    {(!newType.checklists || newType.checklists.length === 0) && (
+                      <p className="text-[10px] text-slate-600 italic text-center py-4">No checklist items added yet.</p>
+                    )}
+                  </div>
+               </div>
+
+               <div className="flex gap-3 pt-2">
+                  <button type="button" onClick={() => setShowAdd(false)} className="flex-1 py-3 rounded-xl bg-white/5 text-slate-400 hover:bg-white/10 font-bold text-sm">Cancel</button>
+                  <button type="submit" className="flex-1 py-3 rounded-xl bg-indigo-600 text-white hover:bg-indigo-500 font-bold text-sm shadow-lg shadow-indigo-600/20">Create Type</button>
+               </div>
+            </form>
+          </div>
+        )}
+
+        {editingType && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <form onSubmit={handleUpdate} className="w-full max-w-2xl bg-[#13161e] border border-white/10 rounded-2xl p-8 shadow-2xl space-y-6 overflow-y-auto max-h-[90vh]">
+               <div>
+                  <h3 className="text-xl font-bold text-white mb-1">Edit Document Type</h3>
+                  <p className="text-xs text-slate-500">Update classification and checklist items.</p>
+               </div>
+               
+               <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Internal Code</label>
+                    <input
+                      required
+                      value={editingType.code}
+                      onChange={e => setEditingType({...editingType, code: e.target.value})}
+                      className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Display Label</label>
+                    <input
+                      required
+                      value={editingType.label}
+                      onChange={e => setEditingType({...editingType, label: e.target.value})}
+                      className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-500"
+                    />
+                  </div>
+               </div>
+
+               <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Checklist Items</label>
+                  <div className="flex gap-2 mb-3">
+                    <input
+                      placeholder="Enter a checklist requirement..."
+                      value={newChecklistItem}
+                      onChange={e => setNewChecklistItem(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addChecklistItem(true))}
+                      className="flex-1 bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-indigo-500"
+                    />
+                    <button type="button" onClick={() => addChecklistItem(true)} className="px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold">Add</button>
+                  </div>
+                  <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
+                    {editingType.checklists?.map((item, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5">
+                        <span className="text-sm text-slate-300">{item}</span>
+                        <button type="button" onClick={() => removeChecklistItem(idx, true)} className="text-slate-500 hover:text-red-400">
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                    {(!editingType.checklists || editingType.checklists.length === 0) && (
+                      <p className="text-[10px] text-slate-600 italic text-center py-4">No checklist items added yet.</p>
+                    )}
+                  </div>
+               </div>
+
+               <div className="flex gap-3 pt-2">
+                  <button type="button" onClick={() => setEditingType(null)} className="flex-1 py-3 rounded-xl bg-white/5 text-slate-400 hover:bg-white/10 font-bold text-sm">Cancel</button>
+                  <button type="submit" className="flex-1 py-3 rounded-xl bg-indigo-600 text-white hover:bg-indigo-500 font-bold text-sm shadow-lg shadow-indigo-600/20">Save Changes</button>
+               </div>
+            </form>
+          </div>
+        )}
 
        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {types.map(t => (
@@ -457,12 +594,32 @@ function DocTypeManagement() {
                   <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400">
                     <FileStack className="w-5 h-5" />
                   </div>
-                  <button onClick={() => handleDelete(t.id)} className="p-2 text-slate-700 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex gap-1">
+                    <button onClick={() => setEditingType(t)} className="p-2 text-slate-500 hover:text-white opacity-0 group-hover:opacity-100 transition-all">
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => handleDelete(t.id)} className="p-2 text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                </div>
                <h4 className="font-bold text-white mb-1">{t.label}</h4>
                <p className="font-mono text-[10px] text-slate-600 mb-4">{t.code}</p>
+               
+               <div className="mb-4">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <List className="w-3.5 h-3.5 text-slate-500" />
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Checklist ({t.checklists?.length || 0})</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {t.checklists?.slice(0, 3).map((item, i) => (
+                      <span key={i} className="px-1.5 py-0.5 rounded bg-white/5 text-[9px] text-slate-400 border border-white/5">{item}</span>
+                    ))}
+                    {(t.checklists?.length > 3) && <span className="text-[9px] text-slate-500 font-bold">+{t.checklists.length - 3} more</span>}
+                    {(!t.checklists || t.checklists.length === 0) && <span className="text-[9px] text-slate-600 italic">No items defined</span>}
+                  </div>
+               </div>
+
                <div className="flex items-center justify-between pt-4 border-t border-white/5">
                   <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
                     <CheckCircle className="w-3.5 h-3.5 text-emerald-400" /> Auto-enabled

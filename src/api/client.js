@@ -62,6 +62,7 @@ export const deleteUser = (id) => api.delete(`/admin/users/${id}`)
 
 export const fetchConfiguredDocTypes = () => api.get('/admin/doc-types')
 export const createConfiguredDocType = (data) => api.post('/admin/doc-types', data)
+export const updateConfiguredDocType = (id, data) => api.patch(`/admin/doc-types/${id}`, data)
 export const deleteConfiguredDocType = (id) => api.delete(`/admin/doc-types/${id}`)
 
 export const fetchStorageSettings = () => api.get('/admin/storage-settings')

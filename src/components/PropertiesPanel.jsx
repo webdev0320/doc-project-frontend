@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { fetchConfiguredDocTypes } from '../api/client'
 import useWorkspaceStore from '../store/workspaceStore'
-import { CheckCircle2, ChevronDown, FileText, Layers, Merge, AlertTriangle } from 'lucide-react'
+import { CheckCircle2, ChevronDown, FileText, Layers, Merge, AlertTriangle, List, Check, Square } from 'lucide-react'
 
 const DOCUMENT_TYPES = [
   'W-2', '1099-NEC', 'Paystub', 'Bank Statement', 'Mortgage Statement',
@@ -24,6 +24,7 @@ export default function PropertiesPanel() {
   const [busy, setBusy] = useState(false)
   const [toast, setToast] = useState(null)
   const [availableTypes, setAvailableTypes] = useState([])
+  const [checkedItems, setCheckedItems] = useState({}) // { docId: [index1, index2] }
 
   useEffect(() => {
     fetchConfiguredDocTypes().then(({ data }) => setAvailableTypes(data.data))
@@ -141,6 +142,81 @@ export default function PropertiesPanel() {
             ))}
           </div>
         </Section>
+
+        {/* ── Document Checklist ── */}
+        {doc && (
+          <Section title="Requirements Checklist" icon={<List className="w-3.5 h-3.5" />}>
+            <div className="space-y-2 mt-1">
+              {(() => {
+                const config = availableTypes.find(t => t.code === docType || t.code === doc.documentType)
+                const items = config?.checklists || []
+                
+                if (items.length === 0) {
+                  return <p className="text-[10px] text-slate-600 italic">No checklist defined for this type.</p>
+                }
+
+                const docChecked = checkedItems[doc.id] || []
+
+                return items.map((item, idx) => {
+                  const isChecked = docChecked.includes(idx)
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => {
+                        const next = isChecked 
+                          ? docChecked.filter(i => i !== idx)
+                          : [...docChecked, idx]
+                        setCheckedItems({ ...checkedItems, [doc.id]: next })
+                      }}
+                      className={`
+                        w-full flex items-start gap-3 p-2.5 rounded-xl border transition-all text-left
+                        ${isChecked 
+                          ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-200/70' 
+                          : 'bg-white/5 border-white/5 text-slate-300 hover:border-indigo-500/30'}
+                      `}
+                    >
+                      <div className={`mt-0.5 shrink-0 w-4 h-4 rounded flex items-center justify-center border transition-colors ${isChecked ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-white/20 text-transparent'}`}>
+                        <Check className="w-3 h-3 stroke-[3px]" />
+                      </div>
+                      <span className={`text-[11px] leading-tight ${isChecked ? 'line-through opacity-50' : ''}`}>
+                        {item}
+                      </span>
+                    </button>
+                  )
+                })
+              })()}
+
+              {(() => {
+                const config = availableTypes.find(t => t.code === docType || t.code === doc.documentType)
+                const items = config?.checklists || []
+                const docChecked = checkedItems[doc.id] || []
+                const missing = items.length - docChecked.length
+
+                if (items.length > 0 && missing > 0) {
+                  return (
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-indigo-500/10 border border-indigo-500/20 mt-4">
+                       <AlertTriangle className="w-3.5 h-3.5 text-indigo-400" />
+                       <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-tight">
+                         {missing} missing items
+                       </span>
+                    </div>
+                  )
+                }
+                if (items.length > 0 && missing === 0) {
+                  return (
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 mt-4">
+                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                       <span className="text-[10px] font-bold text-emerald-300 uppercase tracking-tight">
+                         Checklist Complete
+                       </span>
+                    </div>
+                  )
+                }
+                return null
+              })()}
+            </div>
+          </Section>
+        )}
 
         {/* ── Document Editor ── */}
         {doc && (
