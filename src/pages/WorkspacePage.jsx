@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import useWorkspaceStore from '../store/workspaceStore'
 import ThumbnailSidebar from '../components/ThumbnailSidebar'
@@ -7,7 +7,6 @@ import PropertiesPanel from '../components/PropertiesPanel'
 import axios from 'axios'
 import { ArrowLeft, Loader2, AlertCircle, Scissors, FileUp, CheckCircle, List, Check, AlertTriangle, ChevronDown } from 'lucide-react'
 import { exportBlob, fetchConfiguredDocTypes } from '../api/client'
-import { useState } from 'react'
 
 export default function WorkspacePage() {
   const { blobId } = useParams()
