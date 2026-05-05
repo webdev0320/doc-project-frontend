@@ -23,18 +23,20 @@ export default function MainCanvas() {
   return (
     <div className="flex flex-col h-full bg-[#0d0f14] relative">
       {/* Canvas Area */}
-      <div className="flex-1 flex items-center justify-center mt-12 overflow-hidden">
+      <div className="flex-1 relative overflow-hidden">
         {page ? (
           <TransformWrapper
             initialScale={1}
             minScale={0.1}
             maxScale={5}
             panning={{ disabled: !isPanning }}
-            centerOnInit
+            centerOnInit={true}
+            centerZoomedOut={true}
             wheel={{ step: 0.1 }}
+            limitToBounds={false}
             doubleClick={{ disabled: true }}
           >
-            {({ zoomIn, zoomOut, resetTransform }) => (
+            {({ zoomIn, zoomOut, resetTransform, centerView }) => (
               <>
                 {/* Toolbar - Floating & Glassy */}
                 <div className="absolute top-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 px-4 py-2 glass rounded-2xl shadow-2xl border-white/10">
@@ -90,9 +92,15 @@ export default function MainCanvas() {
 
                 <TransformComponent
                   wrapperStyle={{ width: '100%', height: '100%' }}
-                  contentStyle={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  contentStyle={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    minWidth: '100%',
+                    minHeight: '100%'
+                  }}
                 >
-                   <div className="relative group p-4">
+                   <div className="relative group p-8">
                       <div className="absolute -inset-1 bg-gradient-to-tr from-indigo-500/20 to-purple-500/20 blur-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
                       <div className="relative fade-up rounded-sm shadow-[0_32px_64px_-12px_rgba(0,0,0,0.8)] border border-white/5 bg-white overflow-hidden">
                         {imgError ? (
@@ -108,8 +116,11 @@ export default function MainCanvas() {
                               transform: `rotate(${page.rotation}deg)`,
                               transition: 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
                             }}
-                            className="block w-auto h-auto select-none pointer-events-none"
-                            onLoad={() => setImgError(false)}
+                            className="block w-auto h-auto max-w-[90vw] max-h-[80vh] select-none pointer-events-none"
+                            onLoad={() => {
+                              setImgError(false)
+                              setTimeout(() => centerView(), 100)
+                            }}
                             onError={() => setImgError(true)}
                           />
                         )}
@@ -117,7 +128,7 @@ export default function MainCanvas() {
 
                       {/* AI Ribbon Overlay */}
                       {page.aiLabel && (
-                        <div className="absolute top-8 left-8 right-8 flex items-center justify-between px-4 py-3 bg-black/40 backdrop-blur-xl border border-white/10 rounded-xl">
+                        <div className="absolute top-12 left-12 right-12 flex items-center justify-between px-4 py-3 bg-black/40 backdrop-blur-xl border border-white/10 rounded-xl">
                            <div className="flex items-center gap-2">
                              <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
                              <span className="text-sm font-bold text-white tracking-wide">{page.aiLabel}</span>
