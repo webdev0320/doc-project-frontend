@@ -14,6 +14,19 @@ export default function WorkspacePage() {
   const { blob, documents, loading, error, loadBlob, selectedDocumentId } = useWorkspaceStore()
   const [availableTypes, setAvailableTypes] = useState([])
   const [showChecklist, setShowChecklist] = useState(false)
+  const [exporting, setExporting] = useState(false)
+
+  const handleExport = async () => {
+    setExporting(true)
+    try {
+      await exportBlob(blobId)
+      alert('Document successfully exported to SFTP storage.')
+    } catch (e) {
+      alert('Export failed: ' + (e.response?.data?.error || e.message))
+    } finally {
+      setExporting(false)
+    }
+  }
 
   useEffect(() => { 
     loadBlob(blobId)
@@ -95,6 +108,17 @@ export default function WorkspacePage() {
               </div>
             )}
           </div>
+
+          {blob?.status === 'COMPLETED' && (
+            <button
+              onClick={handleExport}
+              disabled={exporting}
+              className="flex items-center gap-2 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg shadow-lg shadow-emerald-900/40 transition-all active:scale-95 disabled:opacity-50"
+            >
+              {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileUp className="w-3.5 h-3.5" />}
+              {exporting ? 'Exporting...' : 'Export to SFTP'}
+            </button>
+          )}
 
           <StatusBadge status={blob?.status} />
         </div>
