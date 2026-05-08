@@ -36,6 +36,7 @@ export const uploadBlob = (file, onProgress) => {
 export const fetchBlobs = () => api.get('/blobs')
 export const fetchInboundFiles = () => api.get('/upload/inbound')
 export const fetchBlob = (id) => api.get(`/blobs/${id}`)
+export const assignBlob = (id, batchNo) => api.post(`/blobs/${id}/assign`, { batchNo })
 export const deleteBlob = (id) => api.delete(`/blobs/${id}`)
 export const updatePage = (id, data) => api.patch(`/pages/${id}`, data)
 export const deletePage = (id) => api.delete(`/pages/${id}`)
@@ -43,6 +44,7 @@ export const splitDocument = (payload) => api.post('/documents/split', payload)
 export const mergeDocuments = (payload) => api.post('/documents/merge', payload)
 export const verifyDocument = (id, payload) => api.patch(`/documents/${id}/verify`, payload)
 export const renameDocument = (id, payload) => api.patch(`/documents/${id}/rename`, payload)
+
 
 export const addBlobPages = (blobId, file, onProgress) => {
   const form = new FormData()
@@ -64,6 +66,8 @@ export const fetchConfiguredDocTypes = () => api.get('/admin/doc-types')
 export const createConfiguredDocType = (data) => api.post('/admin/doc-types', data)
 export const updateConfiguredDocType = (id, data) => api.patch(`/admin/doc-types/${id}`, data)
 export const deleteConfiguredDocType = (id) => api.delete(`/admin/doc-types/${id}`)
+
+
 
 export const fetchStorageSettings = () => api.get('/admin/storage-settings')
 export const updateStorageSettings = (data) => api.put('/admin/storage-settings', data)

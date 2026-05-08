@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { fetchBlob, updatePage, deletePage, splitDocument, mergeDocuments, verifyDocument, renameDocument, addBlobPages } from '../api/client'
 
+
 const useWorkspaceStore = create((set, get) => ({
   // ── State ──────────────────────────────────────────────
   blob: null,
@@ -151,6 +152,9 @@ const useWorkspaceStore = create((set, get) => ({
     set({ documents: documents.map((d) => (d.id === docId ? { ...d, ...data.data } : d)) })
   },
 
+
+
+
   selectNext: () => {
     const { pages, selectedPageId } = get()
     const idx = pages.findIndex(p => p.id === selectedPageId)
@@ -161,6 +165,25 @@ const useWorkspaceStore = create((set, get) => ({
     const { pages, selectedPageId } = get()
     const idx = pages.findIndex(p => p.id === selectedPageId)
     if (idx > 0) set({ selectedPageId: pages[idx - 1].id, selectedPageIds: [pages[idx - 1].id] })
+  },
+
+  renamePage: async (pageId, newLabel) => {
+    const { pages, blob } = get()
+    const newPages = pages.map(p => p.id === pageId ? { ...p, aiLabel: newLabel } : p)
+    
+    // Also update the blob object's internal pages array to keep state in sync
+    const newBlob = blob ? {
+      ...blob,
+      pages: blob.pages.map(p => p.id === pageId ? { ...p, aiLabel: newLabel } : p)
+    } : null
+
+    set({ pages: newPages, blob: newBlob })
+    try {
+      await updatePage(pageId, { aiLabel: newLabel })
+    } catch (err) {
+      console.error('Failed to update page label on server', err)
+      // Optional: rollback state on error
+    }
   },
 
   removePage: async (pageId) => {

@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, useState } from 'react'
 import {
   DndContext, closestCenter, KeyboardSensor,
   PointerSensor, useSensor, useSensors,
@@ -8,8 +8,9 @@ import {
   verticalListSortingStrategy, useSortable,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { fetchConfiguredDocTypes } from '../api/client'
 import useWorkspaceStore from '../store/workspaceStore'
-import { Scissors, Flag, RotateCw, GripVertical, AlertTriangle, Trash2 } from 'lucide-react'
+import { Scissors, Flag, RotateCw, GripVertical, AlertTriangle, Trash2, MoreVertical, Eye, Download, X, RefreshCw, FileEdit, LayoutGrid, ChevronLeft } from 'lucide-react'
 
 const S3_BASE = import.meta.env.VITE_STORAGE_BASE || 'https://doc-proj-backend.vercel.app/api/storage/pages'
 
@@ -84,6 +85,7 @@ function SortableItem({ page, index }) {
   const {
     pages, selectedPageIds, selectPage, splitAfterPage, removePage
   } = useWorkspaceStore()
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
 
   const {
     attributes, listeners, setNodeRef, transform, transition, isDragging
@@ -92,7 +94,7 @@ function SortableItem({ page, index }) {
   const itemStyle = {
     transform: CSS.Transform.toString(transform),
     transition,
-    zIndex: isDragging ? 50 : 1,
+    zIndex: isDragging || isMenuOpen ? 100 : 1,
     opacity: isDragging ? 0.5 : 1,
     padding: '0 8px'
   }
@@ -109,7 +111,7 @@ function SortableItem({ page, index }) {
   }
 
   return (
-    <div ref={setNodeRef} style={itemStyle} className="flex flex-col gap-1">
+    <div ref={setNodeRef} style={itemStyle} className="flex flex-col gap-1 relative group">
       <div
         onClick={(e) => selectPage(page.id, e.metaKey || e.ctrlKey || e.shiftKey)}
         {...attributes}
@@ -126,14 +128,6 @@ function SortableItem({ page, index }) {
           style={{ transform: `rotate(${page.rotation}deg)` }}
           className="w-full aspect-[3/4] object-cover bg-surface-700 pointer-events-none"
         />
-
-        {/* Delete Button Overlay */}
-        <button
-          onClick={handleDelete}
-          className="absolute top-2 right-2 p-1.5 rounded-lg bg-red-500/90 text-white opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-red-600 active:scale-95 z-20 pointer-events-auto"
-        >
-          <Trash2 className="w-3 h-3" />
-        </button>
 
         <div className="absolute top-2 left-2 flex gap-1 pointer-events-none">
            <span className="bg-black/80 backdrop-blur-md text-white text-[10px] px-1.5 py-0.5 rounded font-mono border border-white/10">
@@ -170,6 +164,14 @@ function SortableItem({ page, index }) {
         </div>
       </div>
 
+      {/* 3-Dots Menu Button (Outside overflow-hidden) */}
+      <PageContextMenu 
+        page={page} 
+        index={index} 
+        isOpen={isMenuOpen} 
+        setIsOpen={setIsMenuOpen} 
+      />
+
       {!isLast && (
         <button
           onClick={(e) => { e.stopPropagation(); splitAfterPage(page.id) }}
@@ -200,5 +202,133 @@ function ActionBtn({ icon, tip, onClick }) {
     >
       {icon}
     </button>
+  )
+}
+
+function PageContextMenu({ page, index, isOpen, setIsOpen }) {
+  const menuRef = useRef(null)
+  const [isRenaming, setIsRenaming] = useState(false)
+  const [showPopup, setShowPopup] = useState(false)
+  const [availableTypes, setAvailableTypes] = useState([])
+  const { 
+    splitAfterPage, rotatePage, flagPage, removePage, renamePage, selectPage 
+  } = useWorkspaceStore()
+
+  useEffect(() => {
+    fetchConfiguredDocTypes()
+      .then(res => setAvailableTypes(res.data.data || []))
+      .catch(err => console.error('Failed to fetch types', err))
+  }, [])
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setIsOpen(false)
+      }
+    }
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [isOpen])
+
+  const handleAction = (e, action, close = true) => {
+    e.stopPropagation()
+    if (close) setIsOpen(false)
+    action()
+  }
+
+  const menuItems = [
+    { label: 'Split', icon: <LayoutGrid className="w-3.5 h-3.5" />, action: () => splitAfterPage(page.id) },
+    { label: 'Rename', icon: <FileEdit className="w-3.5 h-3.5" />, action: () => setShowPopup(true) },
+    { label: 'View', icon: <Eye className="w-3.5 h-3.5" />, action: () => selectPage(page.id) },
+    { label: 'Rotate', icon: <RotateCw className="w-3.5 h-3.5" />, action: () => rotatePage(page.id) },
+    { label: 'Download', icon: <Download className="w-3.5 h-3.5" />, action: () => {
+      window.open(`${S3_BASE}/${page.s3Path}`, '_blank')
+    }},
+    { label: 'Reject', icon: <X className="w-3.5 h-3.5" />, action: () => flagPage(page.id, true) },
+    { label: 'Delete', icon: <Trash2 className="w-3.5 h-3.5" />, action: () => {
+      if (window.confirm('Delete this page?')) removePage(page.id)
+    }, danger: true },
+    { label: 'Re-Generate Thumbnail', icon: <RefreshCw className="w-3.5 h-3.5" />, action: () => {
+      alert('Thumbnail regeneration started...')
+    }},
+  ]
+
+  return (
+    <div className="absolute top-4 right-4 z-50" ref={menuRef}>
+      <button
+        onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen) }}
+        className={`
+          p-1.5 rounded-lg transition-all shadow-xl active:scale-95 pointer-events-auto border border-white/10
+          ${isOpen ? 'bg-white text-black' : 'bg-black/40 text-white backdrop-blur-md hover:bg-black/60 opacity-0 group-hover:opacity-100'}
+        `}
+      >
+        <MoreVertical className="w-3 h-3" />
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 mt-2 w-52 bg-[#1a1d24] border border-white/10 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden animate-in fade-in zoom-in-95 duration-150 pointer-events-auto z-[100]">
+          <div className="py-1.5">
+            {menuItems.map((item, idx) => (
+              <button
+                key={idx}
+                onClick={(e) => handleAction(e, item.action, !item.stayOpen)}
+                className={`
+                  w-full flex items-center gap-3.5 px-4 py-2.5 text-[11px] font-semibold transition-all
+                  ${item.danger ? 'text-red-400 hover:bg-red-500/10' : 'text-slate-300 hover:bg-white/10 hover:text-white'}
+                `}
+              >
+                <span className={item.danger ? 'text-red-400' : 'text-slate-500 group-hover:text-white transition-colors'}>{item.icon}</span>
+                {item.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Rename Popup Modal */}
+      {showPopup && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md">
+          <div className="bg-[#0d0f14] border border-white/10 rounded-2xl w-full max-w-md flex flex-col shadow-2xl animate-in zoom-in duration-200">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
+              <div className="flex items-center gap-2">
+                <FileEdit className="w-4 h-4 text-indigo-400" />
+                <h3 className="text-sm font-bold text-white uppercase tracking-widest">Select Document Type</h3>
+              </div>
+              <button onClick={() => setShowPopup(false)} className="p-2 hover:bg-white/5 rounded-full text-slate-500 hover:text-white transition-all">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-4 grid grid-cols-1 gap-2 max-h-[60vh] overflow-y-auto scrollbar-thin">
+               {availableTypes.length > 0 ? (
+                 availableTypes.map(type => (
+                   <button
+                    key={type.id}
+                    onClick={() => {
+                      renamePage(page.id, type.label)
+                      setShowPopup(false)
+                    }}
+                    className="flex items-center justify-between px-4 py-3 rounded-xl bg-white/5 hover:bg-indigo-600 border border-white/5 hover:border-indigo-400 transition-all text-left group"
+                   >
+                     <span className="text-xs font-semibold text-slate-300 group-hover:text-white">{type.label}</span>
+                     <div className="w-5 h-5 rounded-full bg-white/5 group-hover:bg-white/20 flex items-center justify-center">
+                        <ChevronLeft className="w-3 h-3 rotate-180" />
+                     </div>
+                   </button>
+                 ))
+               ) : (
+                 <div className="py-12 text-center text-slate-500 text-xs italic">
+                    Loading available types...
+                 </div>
+               )}
+            </div>
+            <div className="px-6 py-4 bg-white/5 text-[10px] text-slate-500">
+              Select a type to classify this page. This will update the AI labels across the document.
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }

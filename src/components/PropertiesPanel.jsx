@@ -1,18 +1,13 @@
 import { useState, useEffect } from 'react'
 import { fetchConfiguredDocTypes } from '../api/client'
 import useWorkspaceStore from '../store/workspaceStore'
-import { CheckCircle2, ChevronDown, FileText, Layers, Merge, AlertTriangle, List, Check, Square } from 'lucide-react'
+import { CheckCircle2, ChevronDown, FileText, Layers, Merge, AlertTriangle, List, Check, Square, FileJson, X } from 'lucide-react'
 
-const DOCUMENT_TYPES = [
-  'W-2', '1099-NEC', 'Paystub', 'Bank Statement', 'Mortgage Statement',
-  'Tax Return (1040)', "Driver's License", 'Social Security Card',
-  'Insurance Declaration', 'Unknown',
-]
 
 export default function PropertiesPanel() {
   const {
     pages, documents, selectedPageId, selectedDocumentId,
-    selectDocument, verifyDocument, renameDocument, mergeDocuments,
+    selectDocument, verifyDocument, renameDocument, mergeDocuments
   } = useWorkspaceStore()
 
   const page = pages.find((p) => p.id === selectedPageId)
@@ -23,12 +18,99 @@ export default function PropertiesPanel() {
   const [mergeTarget, setMergeTarget] = useState('')
   const [busy, setBusy] = useState(false)
   const [toast, setToast] = useState(null)
+  const [checkedFields, setCheckedFields] = useState(new Set())
+  const [customFields, setCustomFields] = useState([])
+  const [isAddingField, setIsAddingField] = useState(false)
+  const [newFieldName, setNewFieldName] = useState('')
+  const [newFieldValue, setNewFieldValue] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
   const [availableTypes, setAvailableTypes] = useState([])
-  const [checkedItems, setCheckedItems] = useState({}) // { docId: [index1, index2] }
+  const [showRawJson, setShowRawJson] = useState(false)
 
   useEffect(() => {
-    fetchConfiguredDocTypes().then(({ data }) => setAvailableTypes(data.data))
+    fetchConfiguredDocTypes()
+      .then(({ data }) => setAvailableTypes(data.data || []))
+      .catch(err => console.error('Error fetching doc types:', err))
   }, [])
+
+  // Combine and flatten extracted data from all pages
+  const combinedExtractedData = doc?.pages?.reduce((acc, dp) => {
+    if (dp.page?.extractedData) {
+      try {
+        const data = typeof dp.page.extractedData === 'string' 
+          ? JSON.parse(dp.page.extractedData) 
+          : dp.page.extractedData;
+        
+        const flatten = (obj, prefix = '') => {
+          return Object.keys(obj).reduce((r, k) => {
+            const key = prefix ? `${prefix}_${k}` : k;
+            if (typeof obj[k] === 'object' && obj[k] !== null && !Array.isArray(obj[k])) {
+              Object.assign(r, flatten(obj[k], key));
+            } else {
+              r[key] = obj[k];
+            }
+            return r;
+          }, {});
+        };
+
+        return { ...acc, ...flatten(data) };
+      } catch (e) { return acc }
+    }
+    return acc
+  }, {}) || {}
+
+  // Local state for all fields (AI + Custom) to allow editing
+  const [fields, setFields] = useState({})
+
+  useEffect(() => {
+    // If we have a document, show combined data. Otherwise, show current page data.
+    if (doc) {
+      setFields({ ...combinedExtractedData })
+    } else if (page) {
+      try {
+        const pData = typeof page.extractedData === 'string' 
+          ? JSON.parse(page.extractedData) 
+          : (page.extractedData || {});
+        
+        const flatten = (obj, prefix = '') => {
+          if (!obj || typeof obj !== 'object') return {};
+          return Object.keys(obj).reduce((r, k) => {
+            const key = prefix ? `${prefix}_${k}` : k;
+            if (typeof obj[k] === 'object' && obj[k] !== null && !Array.isArray(obj[k])) {
+              Object.assign(r, flatten(obj[k], key));
+            } else {
+              r[key] = obj[k];
+            }
+            return r;
+          }, {});
+        };
+        setFields(flatten(pData));
+      } catch (e) {
+        setFields({});
+      }
+    } else {
+      setFields({});
+    }
+  }, [doc?.id, page?.id, page?.extractedData])
+
+  const filteredFields = Object.entries({ ...fields, ...customFields.reduce((acc, f) => ({ ...acc, [f.key]: f.value }), {}) })
+    .filter(([k, v]) => k.toLowerCase().includes(searchQuery.toLowerCase()) || String(v).toLowerCase().includes(searchQuery.toLowerCase()))
+
+
+  const toggleCheck = (key) => {
+    const next = new Set(checkedFields)
+    if (next.has(key)) next.delete(key)
+    else next.add(key)
+    setCheckedFields(next)
+  }
+
+  const handleAddField = () => {
+    if (!newFieldName.trim()) return
+    setCustomFields([...customFields, { key: newFieldName, value: newFieldValue }])
+    setNewFieldName('')
+    setNewFieldValue('')
+    setIsAddingField(false)
+  }
 
   useEffect(() => {
     if (doc) { setDocType(doc.documentType || ''); setDocName(doc.name || '') }
@@ -109,16 +191,111 @@ export default function PropertiesPanel() {
           </Section>
         )}
 
-        {/* ── Extracted Data (The Reader) ── */}
-        {page && page.extractedData && (
-          <Section title="Extracted Entities" icon={<CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />}>
-             <div className="space-y-2">
-               {Object.entries(JSON.parse(page.extractedData)).map(([k, v]) => (
-                 <div key={k} className="bg-white/5 rounded-lg p-3 border border-white/5 group hover:border-indigo-500/30 transition-all">
-                    <p className="text-[9px] font-bold text-slate-500 uppercase tracking-tighter">{k.replace('_', ' ')}</p>
-                    <p className="text-sm font-mono text-indigo-200 mt-1">{v}</p>
-                 </div>
-               ))}
+        {/* ── Verification Checklist (Document-wide) ── */}
+        {doc && (
+          <Section title="Verification Checklist" icon={<List className="w-3.5 h-3.5 text-emerald-400" />}>
+             <div className="flex items-center justify-between mb-3 border-b border-white/5 pb-2">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Extracted Fields</span>
+                <button 
+                  onClick={() => setShowRawJson(true)}
+                  className="flex items-center gap-1.5 text-[10px] font-bold text-indigo-400 hover:text-indigo-300 transition-colors group"
+                >
+                  <FileJson className="w-3 h-3 group-hover:scale-110 transition-transform" />
+                  VIEW AI JSON
+                </button>
+             </div>
+             <div className="space-y-3">
+               
+               {/* Search Bar */}
+               <div className="relative">
+                 <input 
+                   placeholder="Search extracted data..." 
+                   className="w-full bg-[#13161e] border border-white/5 rounded-lg px-3 py-2 text-[10px] text-white placeholder-slate-600 focus:border-indigo-500/50 outline-none transition-all"
+                   value={searchQuery}
+                   onChange={e => setSearchQuery(e.target.value)}
+                 />
+                 <List className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-600" />
+               </div>
+
+               <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1 scrollbar-thin">
+                 {filteredFields.map(([k, v]) => (
+                   <div 
+                     key={k} 
+                     className={`
+                       flex items-start gap-3 p-3 rounded-xl transition-all border group
+                       ${checkedFields.has(k) 
+                         ? 'bg-emerald-500/10 border-emerald-500/30' 
+                         : 'bg-white/5 border-white/5 hover:border-indigo-500/30'}
+                     `}
+                   >
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); toggleCheck(k); }}
+                        className={`
+                          mt-0.5 w-5 h-5 rounded-md border flex items-center justify-center transition-all shrink-0
+                          ${checkedFields.has(k) ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-white/20 text-transparent hover:border-white/40'}
+                        `}
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                      </button>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-start">
+                          <p className={`text-[10px] font-bold uppercase tracking-wide truncate ${checkedFields.has(k) ? 'text-emerald-400' : 'text-slate-400'}`}>
+                            {k.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                          </p>
+                          {checkedFields.has(k) && <Check className="w-3 h-3 text-emerald-500 animate-in zoom-in" />}
+                        </div>
+                        <input 
+                          value={v}
+                          onChange={(e) => {
+                             const newVal = e.target.value;
+                             setFields(prev => ({ ...prev, [k]: newVal }));
+                          }}
+                          className={`
+                            w-full bg-[#1a1d24]/50 border border-white/5 rounded-lg px-2.5 py-1.5 text-xs font-mono mt-1.5 outline-none focus:border-indigo-500/30 transition-all
+                            ${checkedFields.has(k) ? 'text-emerald-100' : 'text-indigo-200'}
+                          `}
+                        />
+                      </div>
+                   </div>
+                 ))}
+                 
+                 {filteredFields.length === 0 && searchQuery && (
+                   <div className="text-center py-4 text-slate-600 text-[10px] italic">No matches for "{searchQuery}"</div>
+                 )}
+               </div>
+
+               {/* Add Field Input */}
+               {isAddingField ? (
+                  <div className="bg-white/5 border border-indigo-500/30 rounded-xl p-3 space-y-2 animate-in fade-in slide-in-from-top-1 shadow-2xl">
+                     <input 
+                       placeholder="Label (e.g. Loan Number)" 
+                       className="w-full bg-[#13161e] border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-700 outline-none focus:border-indigo-500/50"
+                       value={newFieldName}
+                       onChange={e => setNewFieldName(e.target.value)}
+                       autoFocus
+                     />
+                     <input 
+                       placeholder="Value" 
+                       className="w-full bg-[#13161e] border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-700 outline-none focus:border-indigo-500/50"
+                       value={newFieldValue}
+                       onChange={e => setNewFieldValue(e.target.value)}
+                     />
+                     <div className="flex gap-2">
+                        <button onClick={handleAddField} className="flex-1 bg-indigo-600 hover:bg-indigo-500 py-2 rounded-lg text-[10px] font-bold transition-all active:scale-95">ADD TO CHECKLIST</button>
+                        <button onClick={() => setIsAddingField(false)} className="px-3 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-[10px] font-bold transition-all">CANCEL</button>
+                     </div>
+                  </div>
+               ) : (
+                  <button 
+                    onClick={() => setIsAddingField(true)}
+                    className="w-full py-3 border border-dashed border-white/10 rounded-xl text-[10px] font-bold text-slate-500 hover:border-indigo-500/30 hover:text-indigo-400 transition-all flex items-center justify-center gap-2 group"
+                  >
+                     <div className="w-5 h-5 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-indigo-500/20 transition-all">
+                        <Check className="w-3 h-3" />
+                     </div> 
+                     ADD MANUAL FIELD
+                  </button>
+               )}
              </div>
           </Section>
         )}
@@ -144,79 +321,6 @@ export default function PropertiesPanel() {
         </Section>
 
         {/* ── Document Checklist ── */}
-        {doc && (
-          <Section title="Requirements Checklist" icon={<List className="w-3.5 h-3.5" />}>
-            <div className="space-y-2 mt-1">
-              {(() => {
-                const config = availableTypes.find(t => t.code === docType || t.code === doc.documentType)
-                const items = config?.checklists || []
-                
-                if (items.length === 0) {
-                  return <p className="text-[10px] text-slate-600 italic">No checklist defined for this type.</p>
-                }
-
-                const docChecked = checkedItems[doc.id] || []
-
-                return items.map((item, idx) => {
-                  const isChecked = docChecked.includes(idx)
-                  return (
-                    <button
-                      key={idx}
-                      onClick={() => {
-                        const next = isChecked 
-                          ? docChecked.filter(i => i !== idx)
-                          : [...docChecked, idx]
-                        setCheckedItems({ ...checkedItems, [doc.id]: next })
-                      }}
-                      className={`
-                        w-full flex items-start gap-3 p-2.5 rounded-xl border transition-all text-left
-                        ${isChecked 
-                          ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-200/70' 
-                          : 'bg-white/5 border-white/5 text-slate-300 hover:border-indigo-500/30'}
-                      `}
-                    >
-                      <div className={`mt-0.5 shrink-0 w-4 h-4 rounded flex items-center justify-center border transition-colors ${isChecked ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-white/20 text-transparent'}`}>
-                        <Check className="w-3 h-3 stroke-[3px]" />
-                      </div>
-                      <span className={`text-[11px] leading-tight ${isChecked ? 'line-through opacity-50' : ''}`}>
-                        {item}
-                      </span>
-                    </button>
-                  )
-                })
-              })()}
-
-              {(() => {
-                const config = availableTypes.find(t => t.code === docType || t.code === doc.documentType)
-                const items = config?.checklists || []
-                const docChecked = checkedItems[doc.id] || []
-                const missing = items.length - docChecked.length
-
-                if (items.length > 0 && missing > 0) {
-                  return (
-                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-indigo-500/10 border border-indigo-500/20 mt-4">
-                       <AlertTriangle className="w-3.5 h-3.5 text-indigo-400" />
-                       <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-tight">
-                         {missing} missing items
-                       </span>
-                    </div>
-                  )
-                }
-                if (items.length > 0 && missing === 0) {
-                  return (
-                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 mt-4">
-                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                       <span className="text-[10px] font-bold text-emerald-300 uppercase tracking-tight">
-                         Checklist Complete
-                       </span>
-                    </div>
-                  )
-                }
-                return null
-              })()}
-            </div>
-          </Section>
-        )}
 
         {/* ── Document Editor ── */}
         {doc && (
@@ -321,6 +425,41 @@ export default function PropertiesPanel() {
         `}>
           <CheckCircle2 className="w-4 h-4 shrink-0" />
           {toast.msg}
+        </div>
+      )}
+
+      {/* Raw JSON Modal */}
+      {showRawJson && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md">
+          <div className="bg-[#0d0f14] border border-white/10 rounded-2xl w-full max-w-2xl max-h-[80vh] flex flex-col shadow-2xl animate-in zoom-in duration-200">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
+              <div className="flex items-center gap-2">
+                <FileJson className="w-4 h-4 text-indigo-400" />
+                <h3 className="text-sm font-bold text-white uppercase tracking-widest">Raw Extracted Data</h3>
+              </div>
+              <button onClick={() => setShowRawJson(false)} className="p-2 hover:bg-white/5 rounded-full text-slate-500 hover:text-white transition-all">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6 scrollbar-thin">
+              <pre className="text-[11px] font-mono text-indigo-300 bg-indigo-500/5 p-4 rounded-xl border border-indigo-500/10 leading-relaxed">
+                {Object.keys(fields).length > 0 
+                  ? JSON.stringify(fields, null, 2) 
+                  : "// No data extracted yet or document processing in progress."}
+              </pre>
+            </div>
+            <div className="p-4 bg-white/5 flex justify-end">
+              <button 
+                onClick={() => {
+                  navigator.clipboard.writeText(JSON.stringify(combinedExtractedData, null, 2))
+                  alert('JSON copied to clipboard')
+                }}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold rounded-lg transition-all active:scale-95"
+              >
+                COPY TO CLIPBOARD
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

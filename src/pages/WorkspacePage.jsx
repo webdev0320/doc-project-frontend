@@ -6,14 +6,12 @@ import MainCanvas from '../components/MainCanvas'
 import PropertiesPanel from '../components/PropertiesPanel'
 import axios from 'axios'
 import { ArrowLeft, Loader2, AlertCircle, Scissors, FileUp, CheckCircle, List, Check, AlertTriangle, ChevronDown } from 'lucide-react'
-import { exportBlob, fetchConfiguredDocTypes } from '../api/client'
+import { exportBlob } from '../api/client'
 
 export default function WorkspacePage() {
   const { blobId } = useParams()
   const navigate = useNavigate()
   const { blob, documents, loading, error, loadBlob, selectedDocumentId } = useWorkspaceStore()
-  const [availableTypes, setAvailableTypes] = useState([])
-  const [showChecklist, setShowChecklist] = useState(false)
   const [exporting, setExporting] = useState(false)
 
   const handleExport = async () => {
@@ -30,7 +28,6 @@ export default function WorkspacePage() {
 
   useEffect(() => { 
     loadBlob(blobId)
-    fetchConfiguredDocTypes().then(({ data }) => setAvailableTypes(data.data))
   }, [blobId])
 
   if (loading) {
@@ -67,58 +64,25 @@ export default function WorkspacePage() {
         <span className="text-sm font-medium text-white truncate">{blob?.filename}</span>
         <span className="text-xs text-slate-500">{blob?.pageCount} pages</span>
         <div className="ml-auto flex items-center gap-4">
-          <div className="relative">
-            <button 
-              onClick={() => setShowChecklist(!showChecklist)}
-              className="flex items-center gap-2 px-3 py-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 text-xs font-bold rounded-lg border border-indigo-500/20 transition-all active:scale-95"
-            >
-              <List className="w-3.5 h-3.5" />
-              Checklist
-              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showChecklist ? 'rotate-180' : ''}`} />
-            </button>
 
-            {showChecklist && (
-              <div className="absolute top-full right-0 mt-2 w-80 bg-[#13161e] border border-white/10 rounded-2xl shadow-2xl z-50 p-4 fade-up">
-                <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
-                  <List className="w-3.5 h-3.5" /> Document Checklist
-                </h3>
-                
-                {(() => {
-                  const doc = documents.find(d => d.id === selectedDocumentId)
-                  if (!doc) return <p className="text-[10px] text-slate-600 italic">Select a document to see its checklist.</p>
-                  
-                  const config = availableTypes.find(t => t.code === doc.documentType)
-                  const items = config?.checklists || []
+          <button
+            onClick={() => navigate(`/workspace/${blobId}/split`)}
+            className="flex items-center gap-2 px-3 py-1.5 bg-surface-700 hover:bg-surface-600 text-slate-200 text-xs font-bold rounded-lg border border-white/10 transition-all active:scale-95"
+          >
+            <Scissors className="w-3.5 h-3.5" /> Manage Flow
+          </button>
 
-                  if (items.length === 0) return <p className="text-[10px] text-slate-600 italic">No checklist defined for {doc.documentType}.</p>
-
-                  return (
-                    <div className="space-y-2">
-                      {items.map((item, idx) => (
-                        <div key={idx} className="flex items-start gap-3 p-2.5 rounded-xl bg-white/5 border border-white/5">
-                          <div className="mt-0.5 shrink-0 w-4 h-4 rounded border border-white/20 flex items-center justify-center">
-                            {/* In a real app, this would be tied to the verified state or a persistent checklist state */}
-                          </div>
-                          <span className="text-[11px] text-slate-300 leading-tight">{item}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )
-                })()}
-              </div>
-            )}
-          </div>
-
-          {blob?.status === 'COMPLETED' && (
-            <button
-              onClick={handleExport}
-              disabled={exporting}
-              className="flex items-center gap-2 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg shadow-lg shadow-emerald-900/40 transition-all active:scale-95 disabled:opacity-50"
-            >
-              {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileUp className="w-3.5 h-3.5" />}
-              {exporting ? 'Exporting...' : 'Export to SFTP'}
-            </button>
-          )}
+          <button
+            onClick={handleExport}
+            disabled={exporting || blob?.status !== 'COMPLETED'}
+            className={`
+              flex items-center gap-2 px-3 py-1.5 text-white text-xs font-bold rounded-lg shadow-lg transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed
+              ${blob?.status === 'COMPLETED' ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/40' : 'bg-slate-700'}
+            `}
+          >
+            {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileUp className="w-3.5 h-3.5" />}
+            {exporting ? 'Exporting...' : 'Export to SFTP'}
+          </button>
 
           <StatusBadge status={blob?.status} />
         </div>
