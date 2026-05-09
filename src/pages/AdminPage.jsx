@@ -532,21 +532,6 @@ function DocTypeManagement() {
                </div>
                <h4 className="font-bold text-white mb-1">{t.label}</h4>
                <p className="font-mono text-[10px] text-slate-600 mb-4">{t.code}</p>
-               
-               <div className="mb-4">
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <List className="w-3.5 h-3.5 text-slate-500" />
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Checklist ({t.checklists?.length || 0})</span>
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    {t.checklists?.slice(0, 3).map((item, i) => (
-                      <span key={i} className="px-1.5 py-0.5 rounded bg-white/5 text-[9px] text-slate-400 border border-white/5">{item}</span>
-                    ))}
-                    {(t.checklists?.length > 3) && <span className="text-[9px] text-slate-500 font-bold">+{t.checklists.length - 3} more</span>}
-                    {(!t.checklists || t.checklists.length === 0) && <span className="text-[9px] text-slate-600 italic">No items defined</span>}
-                  </div>
-               </div>
-
                <div className="flex items-center justify-between pt-4 border-t border-white/5">
                   <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
                     <CheckCircle className="w-3.5 h-3.5 text-emerald-400" /> Auto-enabled
