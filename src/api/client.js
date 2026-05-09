@@ -68,7 +68,9 @@ export const createConfiguredDocType = (data) => api.post('/admin/doc-types', da
 export const updateConfiguredDocType = (id, data) => api.patch(`/admin/doc-types/${id}`, data)
 export const deleteConfiguredDocType = (id) => api.delete(`/admin/doc-types/${id}`)
 
-
+export const fetchChecklists = () => api.get('/admin/checklists')
+export const createChecklist = (data) => api.post('/admin/checklists', data)
+export const deleteChecklist = (id) => api.delete(`/admin/checklists/${id}`)
 
 export const fetchStorageSettings = () => api.get('/admin/storage-settings')
 export const updateStorageSettings = (data) => api.put('/admin/storage-settings', data)
