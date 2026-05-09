@@ -7,7 +7,7 @@ import {
 import {
   Users, FileStack, ShieldAlert, Plus, Trash2,
   CheckCircle, XCircle, ChevronRight, Settings,
-  ArrowLeft, Search, Mail, Server, Cloud, Edit2, X
+  ArrowLeft, Search, Mail, Server, Cloud, Edit2, X, List
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import useAuthStore from '../store/authStore'
@@ -388,8 +388,31 @@ function DocTypeManagement() {
   const [showAdd, setShowAdd] = useState(false)
   const [newType, setNewType] = useState({ code: '', label: '', isCommon: true })
   const [editingType, setEditingType] = useState(null)
+  const [newChecklistItem, setNewChecklistItem] = useState('')
 
   useEffect(() => { load() }, [])
+
+  const addChecklistItem = (isEditing) => {
+    if (!newChecklistItem.trim()) return
+    if (isEditing) {
+      setEditingType({ ...editingType, checklists: [...(editingType.checklists || []), newChecklistItem.trim()] })
+    } else {
+      setNewType({ ...newType, checklists: [...(newType.checklists || []), newChecklistItem.trim()] })
+    }
+    setNewChecklistItem('')
+  }
+
+  const removeChecklistItem = (idx, isEditing) => {
+    if (isEditing) {
+      const next = [...(editingType.checklists || [])]
+      next.splice(idx, 1)
+      setEditingType({ ...editingType, checklists: next })
+    } else {
+      const next = [...(newType.checklists || [])]
+      next.splice(idx, 1)
+      setNewType({ ...newType, checklists: next })
+    }
+  }
 
   const load = async () => {
     try {
@@ -460,6 +483,33 @@ function DocTypeManagement() {
                   </div>
                </div>
 
+               <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Checklist Items</label>
+                  <div className="flex gap-2 mb-3">
+                    <input
+                      placeholder="Enter a checklist requirement..."
+                      value={newChecklistItem}
+                      onChange={e => setNewChecklistItem(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addChecklistItem(false))}
+                      className="flex-1 bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-indigo-500"
+                    />
+                    <button type="button" onClick={() => addChecklistItem(false)} className="px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold">Add</button>
+                  </div>
+                  <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
+                    {newType.checklists?.map((item, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5">
+                        <span className="text-sm text-slate-300">{item}</span>
+                        <button type="button" onClick={() => removeChecklistItem(idx, false)} className="text-slate-500 hover:text-red-400">
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                    {(!newType.checklists || newType.checklists.length === 0) && (
+                      <p className="text-[10px] text-slate-600 italic text-center py-4">No checklist items added yet.</p>
+                    )}
+                  </div>
+               </div>
+
                <div className="flex gap-3 pt-2">
                   <button type="button" onClick={() => setShowAdd(false)} className="flex-1 py-3 rounded-xl bg-white/5 text-slate-400 hover:bg-white/10 font-bold text-sm">Cancel</button>
                   <button type="submit" className="flex-1 py-3 rounded-xl bg-indigo-600 text-white hover:bg-indigo-500 font-bold text-sm shadow-lg shadow-indigo-600/20">Create Type</button>
@@ -497,6 +547,33 @@ function DocTypeManagement() {
                   </div>
                </div>
 
+               <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Checklist Items</label>
+                  <div className="flex gap-2 mb-3">
+                    <input
+                      placeholder="Enter a checklist requirement..."
+                      value={newChecklistItem}
+                      onChange={e => setNewChecklistItem(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addChecklistItem(true))}
+                      className="flex-1 bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-indigo-500"
+                    />
+                    <button type="button" onClick={() => addChecklistItem(true)} className="px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold">Add</button>
+                  </div>
+                  <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
+                    {editingType.checklists?.map((item, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5">
+                        <span className="text-sm text-slate-300">{item}</span>
+                        <button type="button" onClick={() => removeChecklistItem(idx, true)} className="text-slate-500 hover:text-red-400">
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                    {(!editingType.checklists || editingType.checklists.length === 0) && (
+                      <p className="text-[10px] text-slate-600 italic text-center py-4">No checklist items added yet.</p>
+                    )}
+                  </div>
+               </div>
+
                <div className="flex gap-3 pt-2">
                   <button type="button" onClick={() => setEditingType(null)} className="flex-1 py-3 rounded-xl bg-white/5 text-slate-400 hover:bg-white/10 font-bold text-sm">Cancel</button>
                   <button type="submit" className="flex-1 py-3 rounded-xl bg-indigo-600 text-white hover:bg-indigo-500 font-bold text-sm shadow-lg shadow-indigo-600/20">Save Changes</button>
@@ -524,6 +601,20 @@ function DocTypeManagement() {
                <h4 className="font-bold text-white mb-1">{t.label}</h4>
                <p className="font-mono text-[10px] text-slate-600 mb-4">{t.code}</p>
                
+               <div className="mb-4">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <List className="w-3.5 h-3.5 text-slate-500" />
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Checklist ({t.checklists?.length || 0})</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {t.checklists?.slice(0, 3).map((item, i) => (
+                      <span key={i} className="px-1.5 py-0.5 rounded bg-white/5 text-[9px] text-slate-400 border border-white/5">{item}</span>
+                    ))}
+                    {(t.checklists?.length > 3) && <span className="text-[9px] text-slate-500 font-bold">+{t.checklists.length - 3} more</span>}
+                    {(!t.checklists || t.checklists.length === 0) && <span className="text-[9px] text-slate-600 italic">No items defined</span>}
+                  </div>
+               </div>
+
                <div className="flex items-center justify-between pt-4 border-t border-white/5">
                   <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
                     <CheckCircle className="w-3.5 h-3.5 text-emerald-400" /> Auto-enabled
