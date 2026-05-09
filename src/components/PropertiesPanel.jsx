@@ -19,7 +19,6 @@ export default function PropertiesPanel() {
   const [busy, setBusy] = useState(false)
   const [toast, setToast] = useState(null)
   const [checkedFields, setCheckedFields] = useState(new Set())
-  const [customFields, setCustomFields] = useState([])
   const [isAddingField, setIsAddingField] = useState(false)
   const [newFieldName, setNewFieldName] = useState('')
   const [newFieldValue, setNewFieldValue] = useState('')
@@ -93,7 +92,7 @@ export default function PropertiesPanel() {
     }
   }, [doc?.id, page?.id, page?.extractedData])
 
-  const filteredFields = Object.entries({ ...fields, ...customFields.reduce((acc, f) => ({ ...acc, [f.key]: f.value }), {}) })
+  const filteredFields = Object.entries(fields)
     .filter(([k, v]) => k.toLowerCase().includes(searchQuery.toLowerCase()) || String(v).toLowerCase().includes(searchQuery.toLowerCase()))
 
 
@@ -106,7 +105,7 @@ export default function PropertiesPanel() {
 
   const handleAddField = () => {
     if (!newFieldName.trim()) return
-    setCustomFields([...customFields, { key: newFieldName, value: newFieldValue }])
+    setFields(prev => ({ ...prev, [newFieldName]: newFieldValue }))
     setNewFieldName('')
     setNewFieldValue('')
     setIsAddingField(false)
@@ -125,7 +124,7 @@ export default function PropertiesPanel() {
     if (!doc) return
     setBusy(true)
     try {
-      await verifyDocument(doc.id, docType, docName)
+      await verifyDocument(doc.id, docType, docName, fields)
       showToast('Document verified ✓')
     } catch { showToast('Verify failed', 'error') }
     finally { setBusy(false) }

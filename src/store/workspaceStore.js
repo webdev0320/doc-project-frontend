@@ -140,9 +140,9 @@ const useWorkspaceStore = create((set, get) => ({
     })
   },
 
-  verifyDocument: async (docId, documentType, name) => {
+  verifyDocument: async (docId, documentType, name, extractedData) => {
     const { blob, documents } = get()
-    const { data } = await verifyDocument(docId, { documentType, name, blobId: blob.id })
+    const { data } = await verifyDocument(docId, { documentType, name, blobId: blob.id, extractedData })
     set({ documents: documents.map((d) => (d.id === docId ? { ...d, ...data.data } : d)) })
   },
 
