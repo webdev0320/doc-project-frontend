@@ -5,13 +5,15 @@ import ThumbnailSidebar from '../components/ThumbnailSidebar'
 import MainCanvas from '../components/MainCanvas'
 import PropertiesPanel from '../components/PropertiesPanel'
 import axios from 'axios'
-import { ArrowLeft, Loader2, AlertCircle, Scissors, FileUp, CheckCircle, List, Check, AlertTriangle, ChevronDown } from 'lucide-react'
+import { ArrowLeft, Loader2, AlertCircle, Scissors, FileUp, CheckCircle, List, Check, AlertTriangle, ChevronDown, Sun, Moon } from 'lucide-react'
 import { exportBlob, fetchChecklists } from '../api/client'
+import useThemeStore from '../store/themeStore'
 
 export default function WorkspacePage() {
   const { blobId } = useParams()
   const navigate = useNavigate()
   const { blob, documents, loading, error, loadBlob, selectedDocumentId, saveDocumentChecklists } = useWorkspaceStore()
+  const { theme, toggleTheme } = useThemeStore()
   const [globalChecklists, setGlobalChecklists] = useState([])
   const [showChecklist, setShowChecklist] = useState(false)
   const [exporting, setExporting] = useState(false)
@@ -37,7 +39,7 @@ export default function WorkspacePage() {
     return (
       <div className="min-h-screen bg-surface-900 flex flex-col items-center justify-center gap-4">
         <Loader2 className="w-10 h-10 text-indigo-400 animate-spin" />
-        <p className="text-slate-400">Loading workspace…</p>
+        <p className="dark:text-slate-400 text-slate-600">Loading workspace…</p>
       </div>
     )
   }
@@ -55,7 +57,7 @@ export default function WorkspacePage() {
   return (
     <div className="h-screen flex flex-col bg-surface-900 overflow-hidden">
       {/* Top bar */}
-      <header className="flex items-center gap-4 px-4 py-2.5 bg-surface-800 border-b border-white/5 shrink-0">
+      <header className="flex items-center gap-4 px-4 py-2.5 bg-surface-800 border-b dark:border-white/5 border-black/5 shrink-0">
         <button
           id="back-to-dashboard"
           onClick={() => navigate('/')}
@@ -63,10 +65,18 @@ export default function WorkspacePage() {
         >
           <ArrowLeft className="w-3.5 h-3.5" /> Dashboard
         </button>
-        <div className="h-4 w-px bg-white/10" />
-        <span className="text-sm font-medium text-white truncate">{blob?.filename}</span>
+        <div className="h-4 w-px dark:bg-white/10 bg-black/10" />
+        <span className="text-sm font-medium dark:text-white text-slate-900 truncate">{blob?.filename}</span>
         <span className="text-xs text-slate-500">{blob?.pageCount} pages</span>
         <div className="ml-auto flex items-center gap-4">
+
+          <button 
+            onClick={toggleTheme}
+            className="p-1.5 rounded-lg dark:bg-white/5 bg-black/5 dark:text-slate-400 text-slate-600 dark:hover:bg-white/10 hover:bg-black/10 transition-all border dark:border-white/5 border-black/5"
+            title="Toggle Theme"
+          >
+            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
 
           <div className="relative">
             <button 
@@ -79,7 +89,7 @@ export default function WorkspacePage() {
             </button>
 
             {showChecklist && (
-              <div className="absolute top-full right-0 mt-2 w-80 bg-[#13161e] border border-white/10 rounded-2xl shadow-2xl z-50 p-4 fade-up">
+              <div className="absolute top-full right-0 mt-2 w-80 bg-[#13161e] border dark:border-white/10 border-black/10 rounded-2xl shadow-2xl z-50 p-4 fade-up">
                 <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
                   <List className="w-3.5 h-3.5" /> Document Checklist
                 </h3>
@@ -107,12 +117,12 @@ export default function WorkspacePage() {
                           <div 
                             key={idx} 
                             onClick={() => toggleCheck(item.text)}
-                            className="flex items-start gap-3 p-2.5 rounded-xl bg-white/5 border border-white/5 cursor-pointer hover:bg-white/10 transition-colors"
+                            className="flex items-start gap-3 p-2.5 rounded-xl dark:bg-white/5 bg-black/5 border dark:border-white/5 border-black/5 cursor-pointer hover:dark:bg-white/10 bg-black/10 transition-colors"
                           >
-                            <div className={`mt-0.5 shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${isChecked ? 'bg-indigo-500 border-indigo-500 text-white' : 'border-white/20'}`}>
+                            <div className={`mt-0.5 shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${isChecked ? 'bg-indigo-500 border-indigo-500 dark:text-white text-slate-900' : 'dark:border-white/20 border-black/20'}`}>
                               {isChecked && <Check className="w-3 h-3" />}
                             </div>
-                            <span className={`text-[11px] leading-tight transition-colors ${isChecked ? 'text-slate-400 line-through' : 'text-slate-300'}`}>{item.text}</span>
+                            <span className={`text-[11px] leading-tight transition-colors ${isChecked ? 'dark:text-slate-400 text-slate-600 line-through' : 'dark:text-slate-300 text-slate-700'}`}>{item.text}</span>
                           </div>
                         )
                       })}
@@ -125,7 +135,7 @@ export default function WorkspacePage() {
 
           <button
             onClick={() => navigate(`/workspace/${blobId}/split`)}
-            className="flex items-center gap-2 px-3 py-1.5 bg-surface-700 hover:bg-surface-600 text-slate-200 text-xs font-bold rounded-lg border border-white/10 transition-all active:scale-95"
+            className="flex items-center gap-2 px-3 py-1.5 bg-surface-700 hover:bg-surface-600 dark:text-slate-200 text-slate-800 text-xs font-bold rounded-lg border dark:border-white/10 border-black/10 transition-all active:scale-95"
           >
             <Scissors className="w-3.5 h-3.5" /> Manage Flow
           </button>
@@ -134,7 +144,7 @@ export default function WorkspacePage() {
             onClick={handleExport}
             disabled={exporting || blob?.status !== 'COMPLETED'}
             className={`
-              flex items-center gap-2 px-3 py-1.5 text-white text-xs font-bold rounded-lg shadow-lg transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed
+              flex items-center gap-2 px-3 py-1.5 dark:text-white text-slate-900 text-xs font-bold rounded-lg shadow-lg transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed
               ${blob?.status === 'COMPLETED' ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/40' : 'bg-slate-700'}
             `}
           >
@@ -159,7 +169,7 @@ export default function WorkspacePage() {
         </main>
 
         {/* Right: Properties panel */}
-        <aside className="w-72 panel border-l border-white/5 border-r-0 shrink-0">
+        <aside className="w-72 panel border-l dark:border-white/5 border-black/5 border-r-0 shrink-0">
           <PropertiesPanel />
         </aside>
       </div>

@@ -7,6 +7,7 @@ import AdminPage from './pages/AdminPage'
 import SplitMergePage from './pages/SplitMergePage'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
+import useThemeStore from './store/themeStore'
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuthStore()
@@ -24,9 +25,11 @@ const AdminRoute = ({ children }) => {
 
 const AppRoutes = () => {
   const { init } = useAuthStore()
+  const { initTheme } = useThemeStore()
   
   useEffect(() => {
     init()
+    initTheme()
   }, [])
 
   return (

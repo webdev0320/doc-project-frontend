@@ -193,7 +193,7 @@ export default function PropertiesPanel() {
         {/* ── Verification Checklist (Document-wide) ── */}
         {doc && (
           <Section title="Verification Checklist" icon={<List className="w-3.5 h-3.5 text-emerald-400" />}>
-             <div className="flex items-center justify-between mb-3 border-b border-white/5 pb-2">
+             <div className="flex items-center justify-between mb-3 border-b dark:border-white/5 border-black/5 pb-2">
                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Extracted Fields</span>
                 <button 
                   onClick={() => setShowRawJson(true)}
@@ -217,7 +217,7 @@ export default function PropertiesPanel() {
                   w-full text-left px-3 py-2 rounded-lg text-xs transition-all duration-150 border
                   ${d.id === selectedDocumentId
                     ? 'bg-indigo-600/20 border-indigo-500/40 text-indigo-200'
-                    : 'bg-surface-700 border-white/5 text-slate-300 hover:border-white/20'}
+                    : 'bg-surface-700 dark:border-white/5 border-black/5 dark:text-slate-300 text-slate-700 hover:dark:border-white/20 border-black/20'}
                 `}
               >
                 <p className="font-medium truncate">{d.name}</p>
@@ -241,8 +241,8 @@ export default function PropertiesPanel() {
                   value={docType}
                   onChange={(e) => setDocType(e.target.value)}
                   className="
-                    w-full bg-[#13161e] border border-white/10 rounded-xl px-4 py-3 pr-10
-                    text-sm text-white appearance-none focus:outline-none focus:border-indigo-500/50
+                    w-full bg-[#13161e] border dark:border-white/10 border-black/10 rounded-xl px-4 py-3 pr-10
+                    text-sm dark:text-white text-slate-900 appearance-none focus:outline-none focus:border-indigo-500/50
                     cursor-pointer transition-all
                   "
                 >
@@ -266,8 +266,8 @@ export default function PropertiesPanel() {
                     onChange={(e) => setDocName(e.target.value)}
                     placeholder="Auto-generated name..."
                     className="
-                      w-full bg-[#13161e] border border-white/10 rounded-xl px-4 py-3
-                      text-sm text-white placeholder-slate-700
+                      w-full bg-[#13161e] border dark:border-white/10 border-black/10 rounded-xl px-4 py-3
+                      text-sm dark:text-white text-slate-900 placeholder-slate-700
                       focus:outline-none focus:border-indigo-500/50 transition-all
                     "
                   />
@@ -298,8 +298,8 @@ export default function PropertiesPanel() {
                 value={mergeTarget}
                 onChange={(e) => setMergeTarget(e.target.value)}
                 className="
-                  w-full bg-surface-700 border border-white/10 rounded-lg px-3 py-2 pr-8
-                  text-sm text-white appearance-none focus:outline-none focus:border-indigo-500
+                  w-full bg-surface-700 border dark:border-white/10 border-black/10 rounded-lg px-3 py-2 pr-8
+                  text-sm dark:text-white text-slate-900 appearance-none focus:outline-none focus:border-indigo-500
                 "
               >
                 <option value="">Select target…</option>
@@ -307,7 +307,7 @@ export default function PropertiesPanel() {
                   <option key={d.id} value={d.id}>{d.name}</option>
                 ))}
               </select>
-              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 dark:text-slate-400 text-slate-600 pointer-events-none" />
             </div>
             <button
               id="merge-doc-btn"
@@ -338,13 +338,13 @@ export default function PropertiesPanel() {
       {/* Extracted Values Modal */}
       {showRawJson && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md">
-          <div className="bg-[#0d0f14] border border-white/10 rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl animate-in zoom-in duration-200">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 shrink-0">
+          <div className="bg-[#0d0f14] border dark:border-white/10 border-black/10 rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl animate-in zoom-in duration-200">
+            <div className="flex items-center justify-between px-6 py-4 border-b dark:border-white/5 border-black/5 shrink-0">
               <div className="flex items-center gap-2">
                 <FileJson className="w-4 h-4 text-indigo-400" />
-                <h3 className="text-sm font-bold text-white uppercase tracking-widest">Extracted Values</h3>
+                <h3 className="text-sm font-bold dark:text-white text-slate-900 uppercase tracking-widest">Extracted Values</h3>
               </div>
-              <button onClick={() => setShowRawJson(false)} className="p-2 hover:bg-white/5 rounded-full text-slate-500 hover:text-white transition-all">
+              <button onClick={() => setShowRawJson(false)} className="p-2 hover:dark:bg-white/5 bg-black/5 rounded-full text-slate-500 hover:dark:text-white text-slate-900 transition-all">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -355,7 +355,7 @@ export default function PropertiesPanel() {
                  <div className="relative">
                    <input 
                      placeholder="Search extracted data..." 
-                     className="w-full bg-[#13161e] border border-white/5 rounded-lg px-4 py-3 text-sm text-white placeholder-slate-600 focus:border-indigo-500/50 outline-none transition-all"
+                     className="w-full bg-[#13161e] border dark:border-white/5 border-black/5 rounded-lg px-4 py-3 text-sm dark:text-white text-slate-900 placeholder-slate-600 focus:border-indigo-500/50 outline-none transition-all"
                      value={searchQuery}
                      onChange={e => setSearchQuery(e.target.value)}
                    />
@@ -370,21 +370,21 @@ export default function PropertiesPanel() {
                          flex items-start gap-3 p-4 rounded-xl transition-all border group
                          ${checkedFields.has(k) 
                            ? 'bg-emerald-500/10 border-emerald-500/30' 
-                           : 'bg-white/5 border-white/5 hover:border-indigo-500/30'}
+                           : 'dark:bg-white/5 bg-black/5 dark:border-white/5 border-black/5 hover:border-indigo-500/30'}
                        `}
                      >
                         <button 
                           onClick={(e) => { e.stopPropagation(); toggleCheck(k); }}
                           className={`
                             mt-1 w-6 h-6 rounded-md border flex items-center justify-center transition-all shrink-0
-                            ${checkedFields.has(k) ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-white/20 text-transparent hover:border-white/40'}
+                            ${checkedFields.has(k) ? 'bg-emerald-500 border-emerald-500 dark:text-white text-slate-900' : 'dark:border-white/20 border-black/20 text-transparent hover:border-white/40'}
                           `}
                         >
                           <Check className="w-4 h-4" />
                         </button>
                         <div className="flex-1 min-w-0">
                           <div className="flex justify-between items-start">
-                            <p className={`text-xs font-bold uppercase tracking-wide truncate mb-1 ${checkedFields.has(k) ? 'text-emerald-400' : 'text-slate-400'}`}>
+                            <p className={`text-xs font-bold uppercase tracking-wide truncate mb-1 ${checkedFields.has(k) ? 'text-emerald-400' : 'dark:text-slate-400 text-slate-600'}`}>
                               {k.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
                             </p>
                             {checkedFields.has(k) && <Check className="w-4 h-4 text-emerald-500 animate-in zoom-in" />}
@@ -396,7 +396,7 @@ export default function PropertiesPanel() {
                                setFields(prev => ({ ...prev, [k]: newVal }));
                             }}
                             className={`
-                              w-full bg-[#1a1d24]/80 border border-white/5 rounded-lg px-3 py-2 text-sm font-mono mt-1 outline-none focus:border-indigo-500/50 transition-all
+                              w-full bg-[#1a1d24]/80 border dark:border-white/5 border-black/5 rounded-lg px-3 py-2 text-sm font-mono mt-1 outline-none focus:border-indigo-500/50 transition-all
                               ${checkedFields.has(k) ? 'text-emerald-100' : 'text-indigo-200'}
                             `}
                           />
@@ -411,31 +411,31 @@ export default function PropertiesPanel() {
 
                  {/* Add Field Input */}
                  {isAddingField ? (
-                    <div className="bg-white/5 border border-indigo-500/30 rounded-xl p-4 space-y-3 animate-in fade-in shadow-2xl mt-4">
+                    <div className="dark:bg-white/5 bg-black/5 border border-indigo-500/30 rounded-xl p-4 space-y-3 animate-in fade-in shadow-2xl mt-4">
                        <input 
                          placeholder="Label (e.g. Loan Number)" 
-                         className="w-full bg-[#13161e] border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white placeholder-slate-700 outline-none focus:border-indigo-500/50"
+                         className="w-full bg-[#13161e] border dark:border-white/10 border-black/10 rounded-lg px-3 py-2.5 text-sm dark:text-white text-slate-900 placeholder-slate-700 outline-none focus:border-indigo-500/50"
                          value={newFieldName}
                          onChange={e => setNewFieldName(e.target.value)}
                          autoFocus
                        />
                        <input 
                          placeholder="Value" 
-                         className="w-full bg-[#13161e] border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white placeholder-slate-700 outline-none focus:border-indigo-500/50"
+                         className="w-full bg-[#13161e] border dark:border-white/10 border-black/10 rounded-lg px-3 py-2.5 text-sm dark:text-white text-slate-900 placeholder-slate-700 outline-none focus:border-indigo-500/50"
                          value={newFieldValue}
                          onChange={e => setNewFieldValue(e.target.value)}
                        />
                        <div className="flex gap-3 pt-2">
                           <button onClick={handleAddField} className="flex-1 bg-indigo-600 hover:bg-indigo-500 py-2.5 rounded-lg text-xs font-bold transition-all active:scale-95">ADD FIELD</button>
-                          <button onClick={() => setIsAddingField(false)} className="px-4 py-2.5 bg-white/5 hover:bg-white/10 rounded-lg text-xs font-bold transition-all">CANCEL</button>
+                          <button onClick={() => setIsAddingField(false)} className="px-4 py-2.5 dark:bg-white/5 bg-black/5 hover:dark:bg-white/10 bg-black/10 rounded-lg text-xs font-bold transition-all">CANCEL</button>
                        </div>
                     </div>
                  ) : (
                     <button 
                       onClick={() => setIsAddingField(true)}
-                      className="w-full mt-4 py-4 border border-dashed border-white/10 rounded-xl text-xs font-bold text-slate-500 hover:border-indigo-500/30 hover:text-indigo-400 transition-all flex items-center justify-center gap-2 group"
+                      className="w-full mt-4 py-4 border border-dashed dark:border-white/10 border-black/10 rounded-xl text-xs font-bold text-slate-500 hover:border-indigo-500/30 hover:text-indigo-400 transition-all flex items-center justify-center gap-2 group"
                     >
-                       <div className="w-6 h-6 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-indigo-500/20 transition-all">
+                       <div className="w-6 h-6 rounded-full dark:bg-white/5 bg-black/5 flex items-center justify-center group-hover:bg-indigo-500/20 transition-all">
                           <Check className="w-4 h-4" />
                        </div> 
                        ADD MANUAL FIELD
@@ -444,13 +444,13 @@ export default function PropertiesPanel() {
                </div>
             </div>
 
-            <div className="p-4 bg-white/5 flex justify-end gap-3 shrink-0 border-t border-white/5">
+            <div className="p-4 dark:bg-white/5 bg-black/5 flex justify-end gap-3 shrink-0 border-t dark:border-white/5 border-black/5">
               <button 
                 onClick={() => {
                   navigator.clipboard.writeText(JSON.stringify(combinedExtractedData, null, 2))
                   alert('JSON copied to clipboard')
                 }}
-                className="px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-300 text-[10px] font-bold rounded-lg transition-all active:scale-95"
+                className="px-4 py-2 dark:bg-white/5 bg-black/5 hover:dark:bg-white/10 bg-black/10 dark:text-slate-300 text-slate-700 text-[10px] font-bold rounded-lg transition-all active:scale-95"
               >
                 COPY RAW JSON
               </button>
@@ -472,7 +472,7 @@ export default function PropertiesPanel() {
                   link.click();
                   document.body.removeChild(link);
                 }}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold rounded-lg transition-all active:scale-95 flex items-center gap-2"
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 dark:text-white text-slate-900 text-[10px] font-bold rounded-lg transition-all active:scale-95 flex items-center gap-2"
               >
                 EXPORT TO EXCEL
               </button>
@@ -497,9 +497,9 @@ function Section({ title, icon, children }) {
 
 function InfoRow({ label, value }) {
   return (
-    <div className="flex justify-between items-center py-1.5 border-b border-white/5 last:border-0">
+    <div className="flex justify-between items-center py-1.5 border-b dark:border-white/5 border-black/5 last:border-0">
       <span className="text-xs text-slate-500">{label}</span>
-      <span className="text-xs font-medium text-slate-200 font-mono">{value}</span>
+      <span className="text-xs font-medium dark:text-slate-200 text-slate-800 font-mono">{value}</span>
     </div>
   )
 }

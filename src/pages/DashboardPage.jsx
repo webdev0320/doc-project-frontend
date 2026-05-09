@@ -8,17 +8,24 @@ import {
   ChevronDown, ArrowUpDown, MoreHorizontal, History, Zap, Bell
 } from 'lucide-react'
 import { assignBlob } from '../api/client'
-
+import { Sun, Moon } from 'lucide-react'
+import useThemeStore from '../store/themeStore'
 import useAuthStore from '../store/authStore'
 
 export default function DashboardPage() {
   const { user, logout } = useAuthStore()
+  const { theme, toggleTheme } = useThemeStore()
   const navigate = useNavigate()
   const inputRef = useRef()
   const [dragging, setDragging] = useState(false)
   const [uploads, setUploads] = useState([]) // Tracker for current uploads
   const [blobs, setBlobs] = useState([]) // Persistent list from server
   const [search, setSearch] = useState('')
+  const [filterBatchNo, setFilterBatchNo] = useState('')
+  const [filterUser, setFilterUser] = useState('')
+  const [filterDate, setFilterDate] = useState('')
+  const [filterStatus, setFilterStatus] = useState('')
+
   const [loadingBlobs, setLoadingBlobs] = useState(true)
   const [assigningBlob, setAssigningBlob] = useState(null)
   const [batchNo, setBatchNo] = useState('')
@@ -92,9 +99,15 @@ export default function DashboardPage() {
     handleFiles(e.dataTransfer.files)
   }
 
-  const filteredBlobs = blobs.filter(b =>
-    b.filename.toLowerCase().includes(search.toLowerCase())
-  )
+  const filteredBlobs = blobs.filter(b => {
+    const matchSearch = b.filename.toLowerCase().includes(search.toLowerCase())
+    const matchBatch = filterBatchNo ? b.batchNo?.toLowerCase().includes(filterBatchNo.toLowerCase()) : true
+    const matchUser = filterUser ? b.assignedTo?.name?.toLowerCase().includes(filterUser.toLowerCase()) : true
+    const matchStatus = filterStatus ? b.status === filterStatus : true
+    const matchDate = filterDate ? new Date(b.createdAt).toISOString().split('T')[0] === filterDate : true
+    
+    return matchSearch && matchBatch && matchUser && matchStatus && matchDate
+  })
 
   const handleDelete = async (e, id) => {
     e.stopPropagation()
@@ -131,15 +144,15 @@ export default function DashboardPage() {
 
 
   return (
-    <div className="min-h-screen bg-[#0d0f14] text-slate-200">
+    <div className="min-h-screen bg-[#0d0f14] dark:text-slate-200 text-slate-800">
       {/* Search Header */}
-      <header className="sticky top-0 z-10 glass border-b border-white/5 px-4 md:px-8 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <header className="sticky top-0 z-10 glass border-b dark:border-white/5 border-black/5 px-4 md:px-8 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-500/20">
-              <FileText className="w-5 h-5 text-white" />
+              <FileText className="w-5 h-5 dark:text-white text-slate-900" />
             </div>
-            <span className="font-bold text-lg tracking-tight text-white">Workbench</span>
+            <span className="font-bold text-lg tracking-tight dark:text-white text-slate-900">Workbench</span>
           </div>
 
           <div className="relative w-96">
@@ -149,7 +162,7 @@ export default function DashboardPage() {
               placeholder="Search blobs by filename..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-surface-800 border border-white/10 rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-indigo-500 transition-all"
+              className="w-full bg-surface-800 border dark:border-white/10 border-black/10 rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-indigo-500 transition-all"
             />
           </div>
         </div>
@@ -165,16 +178,24 @@ export default function DashboardPage() {
           )}
 
           <div className="flex flex-col items-end">
-            <span className="text-xs font-bold text-white leading-none">{user?.name || 'Operator'}</span>
+            <span className="text-xs font-bold dark:text-white text-slate-900 leading-none">{user?.name || 'Operator'}</span>
             <span className="text-[10px] text-slate-500 uppercase tracking-tighter">{user?.role}</span>
           </div>
+
+          <button 
+            onClick={toggleTheme}
+            className="p-2.5 rounded-xl dark:bg-white/5 bg-black/5 dark:text-slate-400 text-slate-600 dark:hover:bg-white/10 hover:bg-black/10 dark:hover:text-white hover:text-slate-900 transition-all border dark:border-white/5 border-black/5"
+            title="Toggle Theme"
+          >
+            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
           
           <button 
             onClick={async () => {
               await logout()
               navigate('/login')
             }}
-            className="p-2.5 rounded-xl bg-white/5 text-slate-400 hover:bg-red-500/10 hover:text-red-400 transition-all border border-white/5"
+            className="p-2.5 rounded-xl dark:bg-white/5 bg-black/5 dark:text-slate-400 text-slate-600 hover:bg-red-500/10 hover:text-red-400 transition-all border dark:border-white/5 border-black/5"
             title="Sign Out"
           >
             <LogOut className="w-4 h-4" />
@@ -186,7 +207,7 @@ export default function DashboardPage() {
         {/* Summary Cards */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Status Card */}
-          <div className="bg-surface-800/50 border border-white/5 rounded-2xl p-6">
+          <div className="bg-surface-800/50 border dark:border-white/5 border-black/5 rounded-2xl p-6">
             <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4">Status</h4>
             <div className="grid grid-cols-4 gap-2">
               <div className="text-center">
@@ -209,33 +230,33 @@ export default function DashboardPage() {
           </div>
 
           {/* Ageing Card */}
-          <div className="bg-surface-800/50 border border-white/5 rounded-2xl p-6">
+          <div className="bg-surface-800/50 border dark:border-white/5 border-black/5 rounded-2xl p-6">
             <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4">Ageing</h4>
-            <div className="flex gap-1 h-2 rounded-full overflow-hidden bg-white/5 mb-4">
+            <div className="flex gap-1 h-2 rounded-full overflow-hidden dark:bg-white/5 bg-black/5 mb-4">
               <div className="w-1/3 bg-red-500/40" />
               <div className="w-1/2 bg-yellow-500/40" />
               <div className="w-1/6 bg-emerald-500/40" />
             </div>
             <div className="grid grid-cols-3 gap-2">
               <div className="text-center">
-                <div className="text-lg font-bold text-white">3</div>
+                <div className="text-lg font-bold dark:text-white text-slate-900">3</div>
                 <div className="text-[10px] text-slate-500 mt-1">0-5 Days</div>
               </div>
               <div className="text-center">
-                <div className="text-lg font-bold text-white">0</div>
+                <div className="text-lg font-bold dark:text-white text-slate-900">0</div>
                 <div className="text-[10px] text-slate-500 mt-1">6-10 Days</div>
               </div>
               <div className="text-center">
-                <div className="text-lg font-bold text-white">1</div>
+                <div className="text-lg font-bold dark:text-white text-slate-900">1</div>
                 <div className="text-[10px] text-slate-500 mt-1">11-15 Days</div>
               </div>
             </div>
           </div>
 
           {/* SLA Card */}
-          <div className="bg-surface-800/50 border border-white/5 rounded-2xl p-6">
+          <div className="bg-surface-800/50 border dark:border-white/5 border-black/5 rounded-2xl p-6">
             <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4">Nearing SLA</h4>
-            <div className="flex gap-1 h-2 rounded-full overflow-hidden bg-white/5 mb-4">
+            <div className="flex gap-1 h-2 rounded-full overflow-hidden dark:bg-white/5 bg-black/5 mb-4">
               <div className="w-[10%] bg-red-500/40" />
               <div className="w-[20%] bg-orange-500/40" />
               <div className="w-[30%] bg-yellow-500/40" />
@@ -243,19 +264,19 @@ export default function DashboardPage() {
             </div>
             <div className="grid grid-cols-4 gap-2">
               <div className="text-center">
-                <div className="text-lg font-bold text-white">0</div>
+                <div className="text-lg font-bold dark:text-white text-slate-900">0</div>
                 <div className="text-[10px] text-slate-500 mt-1">5m</div>
               </div>
               <div className="text-center">
-                <div className="text-lg font-bold text-white">0</div>
+                <div className="text-lg font-bold dark:text-white text-slate-900">0</div>
                 <div className="text-[10px] text-slate-500 mt-1">10m</div>
               </div>
               <div className="text-center">
-                <div className="text-lg font-bold text-white">0</div>
+                <div className="text-lg font-bold dark:text-white text-slate-900">0</div>
                 <div className="text-[10px] text-slate-500 mt-1">30m</div>
               </div>
               <div className="text-center">
-                <div className="text-lg font-bold text-white">0</div>
+                <div className="text-lg font-bold dark:text-white text-slate-900">0</div>
                 <div className="text-[10px] text-slate-500 mt-1">1hr</div>
               </div>
             </div>
@@ -272,7 +293,7 @@ export default function DashboardPage() {
             className={`
               relative group overflow-hidden rounded-3xl border-2 border-dashed transition-all duration-300 cursor-pointer
               flex flex-col items-center justify-center p-8
-              ${dragging ? 'border-indigo-500 bg-indigo-500/5' : 'border-white/10 bg-surface-900/50 hover:border-indigo-500/30 hover:bg-surface-800/50'}
+              ${dragging ? 'border-indigo-500 bg-indigo-500/5' : 'dark:border-white/10 border-black/10 bg-surface-900/50 hover:border-indigo-500/30 hover:bg-surface-800/50'}
             `}
           >
             <input ref={inputRef} type="file" multiple accept=".pdf" className="hidden" onChange={(e) => handleFiles(e.target.files)} />
@@ -281,8 +302,8 @@ export default function DashboardPage() {
               <div className="w-12 h-12 rounded-xl bg-indigo-600/10 border border-indigo-500/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                 <CloudUpload className="w-6 h-6 text-indigo-400" />
               </div>
-              <h2 className="text-lg font-bold text-white mb-1">Smart Ingestion</h2>
-              <p className="text-xs text-slate-400 max-w-md">
+              <h2 className="text-lg font-bold dark:text-white text-slate-900 mb-1">Smart Ingestion</h2>
+              <p className="text-xs dark:text-slate-400 text-slate-600 max-w-md">
                 Drag and drop your bulk mortgage packages here. Our AI will automatically
                 <span className="text-indigo-400 mx-1">explode</span>,
                 <span className="text-indigo-400 mx-1">classify</span>, and
@@ -301,7 +322,7 @@ export default function DashboardPage() {
           <section className="fade-up space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold uppercase tracking-widest text-slate-500">Live Monitors</h3>
-              <button onClick={() => setUploads([])} className="text-xs text-slate-600 hover:text-slate-400">Clear Finished</button>
+              <button onClick={() => setUploads([])} className="text-xs text-slate-600 hover:dark:text-slate-400 text-slate-600">Clear Finished</button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                {uploads.map(u => (
@@ -319,7 +340,7 @@ export default function DashboardPage() {
         {/* SFTP Inbound Files Monitoring */}
         {inboundFiles.length > 0 && (
           <section className="fade-up space-y-4">
-            <div className="flex items-center justify-between border-b border-white/5 pb-2">
+            <div className="flex items-center justify-between border-b dark:border-white/5 border-black/5 pb-2">
               <h3 className="text-sm font-semibold uppercase tracking-widest text-slate-500">SFTP Inbound Queue</h3>
               <div className="flex items-center gap-2 text-xs text-slate-500 font-mono">
                 Queued: {inboundFiles.length}
@@ -327,12 +348,12 @@ export default function DashboardPage() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                {inboundFiles.map((file, idx) => (
-                <div key={idx} className="p-4 rounded-2xl border bg-surface-800 border-white/10 transition-all duration-300 flex items-start gap-3">
+                <div key={idx} className="p-4 rounded-2xl border bg-surface-800 dark:border-white/10 border-black/10 transition-all duration-300 flex items-start gap-3">
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-blue-500/20 text-blue-400">
                     <CloudUpload className="w-4 h-4" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-xs font-semibold text-white truncate">{file.name}</p>
+                    <p className="text-xs font-semibold dark:text-white text-slate-900 truncate">{file.name}</p>
                     <p className="text-[10px] text-slate-500">Waiting for SFTP Poller...</p>
                   </div>
                 </div>
@@ -343,18 +364,74 @@ export default function DashboardPage() {
 
         {/* Main List */}
         <section className="space-y-6">
-          <div className="flex items-center justify-between border-b border-white/5 pb-4">
-            <h3 className="text-sm font-semibold uppercase tracking-widest text-slate-500">Recent Blobs</h3>
-            <div className="flex items-center gap-2 text-xs text-slate-500 font-mono">
-              Total: {blobs.length} | Processed: {blobs.filter(b => b.status === 'COMPLETED').length}
+          <div className="flex flex-col gap-4 border-b dark:border-white/5 border-black/5 pb-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold uppercase tracking-widest text-slate-500">Recent Blobs</h3>
+              <div className="flex items-center gap-2 text-xs text-slate-500 font-mono">
+                Total: {blobs.length} | Processed: {blobs.filter(b => b.status === 'COMPLETED').length}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Batch No Filter */}
+              <div className="relative">
+                <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                <input 
+                  type="text" 
+                  placeholder="Filter by Batch No..." 
+                  value={filterBatchNo}
+                  onChange={e => setFilterBatchNo(e.target.value)}
+                  className="w-full bg-surface-800 border dark:border-white/10 border-black/10 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 transition-all"
+                />
+              </div>
+
+              {/* User Filter */}
+              <div className="relative">
+                <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                <input 
+                  type="text" 
+                  placeholder="Filter by User..." 
+                  value={filterUser}
+                  onChange={e => setFilterUser(e.target.value)}
+                  className="w-full bg-surface-800 border dark:border-white/10 border-black/10 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 transition-all"
+                />
+              </div>
+
+              {/* Date Filter */}
+              <div className="relative">
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                <input 
+                  type="date" 
+                  value={filterDate}
+                  onChange={e => setFilterDate(e.target.value)}
+                  className="w-full bg-surface-800 border dark:border-white/10 border-black/10 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 transition-all dark:[color-scheme:dark]"
+                />
+              </div>
+
+              {/* Status Filter */}
+              <div className="relative">
+                <select 
+                  value={filterStatus}
+                  onChange={e => setFilterStatus(e.target.value)}
+                  className="w-full bg-surface-800 border dark:border-white/10 border-black/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 transition-all appearance-none"
+                >
+                  <option value="">All Statuses</option>
+                  <option value="PENDING">PENDING</option>
+                  <option value="IN-PROGRESS">IN-PROGRESS</option>
+                  <option value="PROCESSING">PROCESSING</option>
+                  <option value="COMPLETED">COMPLETED</option>
+                  <option value="FAILED">FAILED</option>
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
+              </div>
             </div>
           </div>
 
-          <div className="overflow-x-auto rounded-2xl border border-white/5 bg-surface-800/30">
+          <div className="overflow-x-auto rounded-2xl border dark:border-white/5 border-black/5 bg-surface-800/30">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-surface-800/50 border-b border-white/5 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                  <th className="px-6 py-4 w-10"><input type="checkbox" className="rounded bg-surface-700 border-white/10" /></th>
+                <tr className="bg-surface-800/50 border-b dark:border-white/5 border-black/5 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                  <th className="px-6 py-4 w-10"><input type="checkbox" className="rounded bg-surface-700 dark:border-white/10 border-black/10" /></th>
                   <th className="px-4 py-4">Batch Completed Date</th>
                   <th className="px-4 py-4">User</th>
                   <th className="px-4 py-4">Batch No.</th>
@@ -400,13 +477,13 @@ export default function DashboardPage() {
                     return (
                       <tr 
                         key={blob.id} 
-                        className="group hover:bg-white/5 transition-colors cursor-pointer"
+                        className="group hover:dark:bg-white/5 bg-black/5 transition-colors cursor-pointer"
                         onClick={() => navigate(`/workspace/${blob.id}`)}
                       >
                         <td className="px-6 py-4" onClick={e => e.stopPropagation()}>
-                          <input type="checkbox" className="rounded bg-surface-700 border-white/10" />
+                          <input type="checkbox" className="rounded bg-surface-700 dark:border-white/10 border-black/10" />
                         </td>
-                        <td className="px-4 py-4 text-xs text-slate-400">
+                        <td className="px-4 py-4 text-xs dark:text-slate-400 text-slate-600">
                           {blob.completedAt ? new Date(blob.completedAt).toLocaleDateString() : '-'}
                         </td>
                         <td className="px-4 py-4">
@@ -415,7 +492,7 @@ export default function DashboardPage() {
                               <div className="w-6 h-6 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-400 text-[10px] font-bold">
                                 {blob.assignedTo.name?.charAt(0) || 'U'}
                               </div>
-                              <span className="text-xs text-white">{blob.assignedTo.name || 'SYSTEM'}</span>
+                              <span className="text-xs dark:text-white text-slate-900">{blob.assignedTo.name || 'SYSTEM'}</span>
                             </div>
                           ) : (
                             <button 
@@ -427,15 +504,15 @@ export default function DashboardPage() {
                           )}
                         </td>
                         <td className="px-4 py-4 text-xs text-indigo-400 font-medium">{blob.batchNo || '-'}</td>
-                        <td className="px-4 py-4 text-xs text-slate-400">
+                        <td className="px-4 py-4 text-xs dark:text-slate-400 text-slate-600">
                           {new Date(blob.createdAt).toLocaleDateString()}<br/>
                           <span className="text-[10px] text-slate-500">{new Date(blob.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                         </td>
-                        <td className="px-4 py-4 text-xs text-slate-400">
+                        <td className="px-4 py-4 text-xs dark:text-slate-400 text-slate-600">
                           {new Date(blob.createdAt).toLocaleDateString()}
                         </td>
-                        <td className="px-4 py-4 text-xs text-slate-300 text-center font-bold">{blob.pageCount}</td>
-                        <td className="px-4 py-4 text-xs text-slate-400">
+                        <td className="px-4 py-4 text-xs dark:text-slate-300 text-slate-700 text-center font-bold">{blob.pageCount}</td>
+                        <td className="px-4 py-4 text-xs dark:text-slate-400 text-slate-600">
                           {calculateTimeTaken(blob)}
                         </td>
                         <td className="px-4 py-4">
@@ -461,15 +538,15 @@ export default function DashboardPage() {
           {/* Assignment Modal */}
           {assigningBlob && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-              <div className="bg-surface-800 border border-white/10 rounded-2xl w-full max-w-md shadow-2xl fade-up overflow-hidden">
-                <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between">
-                  <h3 className="text-sm font-bold text-white uppercase tracking-widest">Assign Document</h3>
-                  <button onClick={() => setAssigningBlob(null)} className="text-slate-500 hover:text-white"><X className="w-4 h-4" /></button>
+              <div className="bg-surface-800 border dark:border-white/10 border-black/10 rounded-2xl w-full max-w-md shadow-2xl fade-up overflow-hidden">
+                <div className="px-6 py-4 border-b dark:border-white/5 border-black/5 flex items-center justify-between">
+                  <h3 className="text-sm font-bold dark:text-white text-slate-900 uppercase tracking-widest">Assign Document</h3>
+                  <button onClick={() => setAssigningBlob(null)} className="text-slate-500 hover:dark:text-white text-slate-900"><X className="w-4 h-4" /></button>
                 </div>
                 <div className="p-6 space-y-4">
                   <div className="p-4 rounded-xl bg-indigo-500/5 border border-indigo-500/10">
-                    <p className="text-xs text-slate-400 mb-1">Document Name</p>
-                    <p className="text-sm font-bold text-white truncate">{assigningBlob.filename}</p>
+                    <p className="text-xs dark:text-slate-400 text-slate-600 mb-1">Document Name</p>
+                    <p className="text-sm font-bold dark:text-white text-slate-900 truncate">{assigningBlob.filename}</p>
                   </div>
                   
                   <div>
@@ -479,7 +556,7 @@ export default function DashboardPage() {
                       placeholder="Enter batch number (e.g. 2025020401)"
                       value={batchNo}
                       onChange={(e) => setBatchNo(e.target.value)}
-                      className="w-full bg-surface-900 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition-all"
+                      className="w-full bg-surface-900 border dark:border-white/10 border-black/10 rounded-xl px-4 py-3 text-sm dark:text-white text-slate-900 focus:outline-none focus:border-indigo-500 transition-all"
                       autoFocus
                     />
                   </div>
@@ -487,14 +564,14 @@ export default function DashboardPage() {
                   <div className="flex items-center gap-3 pt-2">
                     <button 
                       onClick={() => setAssigningBlob(null)}
-                      className="flex-1 px-4 py-2.5 rounded-xl bg-white/5 text-slate-400 hover:bg-white/10 text-xs font-bold transition-all"
+                      className="flex-1 px-4 py-2.5 rounded-xl dark:bg-white/5 bg-black/5 dark:text-slate-400 text-slate-600 hover:dark:bg-white/10 bg-black/10 text-xs font-bold transition-all"
                     >
                       Cancel
                     </button>
                     <button 
                       onClick={handleAssign}
                       disabled={isAssigning || !batchNo.trim()}
-                      className="flex-1 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all shadow-lg shadow-indigo-900/40 disabled:opacity-50"
+                      className="flex-1 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 dark:text-white text-slate-900 text-xs font-bold transition-all shadow-lg shadow-indigo-900/40 disabled:opacity-50"
                     >
                       {isAssigning ? 'Assigning...' : 'Proceed'}
                     </button>
@@ -517,7 +594,7 @@ function UploadCard({ upload, onOpen, onCancel }) {
   return (
     <div className={`
       p-4 rounded-2xl border transition-all duration-300
-      ${isDone ? 'bg-green-500/5 border-green-500/20' : isError ? 'bg-red-500/5 border-red-500/20' : 'bg-surface-800 border-white/10'}
+      ${isDone ? 'bg-green-500/5 border-green-500/20' : isError ? 'bg-red-500/5 border-red-500/20' : 'bg-surface-800 dark:border-white/10 border-black/10'}
     `}>
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-3">
@@ -525,7 +602,7 @@ function UploadCard({ upload, onOpen, onCancel }) {
             {isDone ? <Check className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
           </div>
           <div className="min-w-0">
-            <p className="text-xs font-semibold text-white truncate w-40">{upload.name}</p>
+            <p className="text-xs font-semibold dark:text-white text-slate-900 truncate w-40">{upload.name}</p>
             <p className="text-[10px] text-slate-500">{isDone ? 'Sent to SFTP Inbound' : 'Uploading...'}</p>
           </div>
         </div>
@@ -537,7 +614,7 @@ function UploadCard({ upload, onOpen, onCancel }) {
           )}
           <button 
             onClick={onCancel}
-            className="p-1.5 rounded-lg hover:bg-white/5 text-slate-500"
+            className="p-1.5 rounded-lg hover:dark:bg-white/5 bg-black/5 text-slate-500"
           >
             <X className="w-3.5 h-3.5" />
           </button>
@@ -546,11 +623,11 @@ function UploadCard({ upload, onOpen, onCancel }) {
 
       {!isDone && !isError && (
         <div className="space-y-2">
-          <div className="flex items-center justify-between text-[10px] text-slate-400">
+          <div className="flex items-center justify-between text-[10px] dark:text-slate-400 text-slate-600">
             <span>Progress</span>
             <span>{upload.progress}%</span>
           </div>
-          <div className="h-1 bg-white/5 rounded-full overflow-hidden">
+          <div className="h-1 dark:bg-white/5 bg-black/5 rounded-full overflow-hidden">
             <div className="h-full bg-indigo-500 transition-all duration-300" style={{ width: `${upload.progress}%` }} />
           </div>
         </div>

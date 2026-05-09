@@ -1,15 +1,24 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: 'class',
   content: ['./index.html', './src/**/*.{js,jsx,ts,tsx}'],
   theme: {
     extend: {
       colors: {
         surface: {
-          900: '#0d0f14',
-          800: '#13161e',
-          700: '#1a1e29',
-          600: '#222738',
-          500: '#2c3347',
+          900: 'rgb(var(--surface-900) / <alpha-value>)',
+          800: 'rgb(var(--surface-800) / <alpha-value>)',
+          700: 'rgb(var(--surface-700) / <alpha-value>)',
+          600: 'rgb(var(--surface-600) / <alpha-value>)',
+          500: 'rgb(var(--surface-500) / <alpha-value>)',
+        },
+        text: {
+          main: 'rgb(var(--text-main) / <alpha-value>)',
+          muted: 'rgb(var(--text-muted) / <alpha-value>)',
+          inverse: 'rgb(var(--text-inverse) / <alpha-value>)',
+        },
+        border: {
+          main: 'rgb(var(--border-main) / <alpha-value>)',
         },
         accent: {
           400: '#818cf8',

@@ -40,51 +40,51 @@ export default function MainCanvas() {
             {({ zoomIn, zoomOut, resetTransform, centerView }) => (
               <>
                 {/* Toolbar - Floating & Glassy */}
-                <div className="absolute top-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 px-4 py-2 glass rounded-2xl shadow-2xl border-white/10">
+                <div className="absolute top-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 px-4 py-2 glass rounded-2xl shadow-2xl dark:border-white/10 border-black/10">
                   <button className="btn-ghost p-2" onClick={prev} disabled={idx <= 0}>
                     <ChevronLeft className="w-4 h-4" />
                   </button>
 
-                  <div className="h-6 w-px bg-white/10 mx-2" />
+                  <div className="h-6 w-px dark:bg-white/10 bg-black/10 mx-2" />
 
-                  <button className={`p-2 rounded-xl transition-all ${isPanning ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-white/5'}`} onClick={() => setIsPanning(true)}>
+                  <button className={`p-2 rounded-xl transition-all ${isPanning ? 'bg-indigo-600 text-white' : 'dark:text-slate-400 text-slate-600 hover:dark:bg-white/5 bg-black/5'}`} onClick={() => setIsPanning(true)}>
                     <Hand className="w-4 h-4" />
                   </button>
-                  <button className={`p-2 rounded-xl transition-all ${!isPanning ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-white/5'}`} onClick={() => setIsPanning(false)}>
+                  <button className={`p-2 rounded-xl transition-all ${!isPanning ? 'bg-indigo-600 text-white' : 'dark:text-slate-400 text-slate-600 hover:dark:bg-white/5 bg-black/5'}`} onClick={() => setIsPanning(false)}>
                     <MousePointer2 className="w-4 h-4" />
                   </button>
 
-                  <div className="h-6 w-px bg-white/10 mx-2" />
+                  <div className="h-6 w-px dark:bg-white/10 bg-black/10 mx-2" />
 
                   <button 
                     id="zoom-out" 
-                    className="btn-ghost p-2 text-slate-400 hover:text-white"
+                    className="btn-ghost p-2 dark:text-slate-400 text-slate-600 hover:dark:text-white text-slate-900"
                     onClick={() => zoomOut()}
                   >
                     <ZoomOut className="w-4 h-4" />
                   </button>
                   <button 
                     id="zoom-in" 
-                    className="btn-ghost p-2 text-slate-400 hover:text-white"
+                    className="btn-ghost p-2 dark:text-slate-400 text-slate-600 hover:dark:text-white text-slate-900"
                     onClick={() => zoomIn()}
                   >
                     <ZoomIn className="w-4 h-4" />
                   </button>
 
-                  <div className="h-6 w-px bg-white/10 mx-2" />
+                  <div className="h-6 w-px dark:bg-white/10 bg-black/10 mx-2" />
 
-                  <button className="btn-ghost p-2 text-slate-400 hover:text-white" onClick={() => rotatePage(page?.id)}>
+                  <button className="btn-ghost p-2 dark:text-slate-400 text-slate-600 hover:dark:text-white text-slate-900" onClick={() => rotatePage(page?.id)}>
                     <RotateCcw className="w-4 h-4" />
                   </button>
 
                   <button 
-                    className="btn-ghost p-2 text-slate-400 hover:text-white"
+                    className="btn-ghost p-2 dark:text-slate-400 text-slate-600 hover:dark:text-white text-slate-900"
                     onClick={() => window.open(`${S3_BASE}/${page?.s3Path}`, '_blank')}
                   >
                     <Download className="w-4 h-4" />
                   </button>
 
-                  <div className="h-6 w-px bg-white/10 mx-2" />
+                  <div className="h-6 w-px dark:bg-white/10 bg-black/10 mx-2" />
 
                   <button className="btn-ghost p-2" onClick={next} disabled={idx >= pages.length - 1}>
                     <ChevronRight className="w-4 h-4" />
@@ -140,16 +140,16 @@ export default function MainCanvas() {
 
                             {/* AI Ribbon - Pinned to the top of the viewing area, not the rotated content */}
                             {page.aiLabel && (
-                              <div className="absolute -top-16 left-0 right-0 flex items-center justify-between px-5 py-3 bg-[#1a1d24]/90 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl z-40 animate-in slide-in-from-top-4 duration-500">
+                              <div className="absolute -top-16 left-0 right-0 flex items-center justify-between px-5 py-3 bg-[#1a1d24]/90 backdrop-blur-2xl border dark:border-white/10 border-black/10 rounded-2xl shadow-2xl z-40 animate-in slide-in-from-top-4 duration-500">
                                  <div className="flex items-center gap-3">
                                    <div className="w-2.5 h-2.5 rounded-full bg-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.5)] animate-pulse" />
                                    <div className="flex flex-col">
                                      <span className="text-[10px] uppercase font-bold text-slate-500 tracking-tighter">Classification</span>
-                                     <span className="text-[13px] font-black text-white tracking-wide uppercase">{page.aiLabel}</span>
+                                     <span className="text-[13px] font-black dark:text-white text-slate-900 tracking-wide uppercase">{page.aiLabel}</span>
                                    </div>
                                  </div>
                                  <div className="flex items-center gap-4">
-                                   <div className="h-8 w-px bg-white/10" />
+                                   <div className="h-8 w-px dark:bg-white/10 bg-black/10" />
                                    <ConfidenceBadge score={page.confidenceScore} />
                                  </div>
                               </div>
@@ -171,10 +171,10 @@ export default function MainCanvas() {
       </div>
 
       {/* Page Selector Footer */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-4 px-4 py-2 glass rounded-full text-[11px] font-mono text-slate-400">
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-4 px-4 py-2 glass rounded-full text-[11px] font-mono dark:text-slate-400 text-slate-600">
          <span>DOCUMENT_FLIGHT_PATH</span>
-         <div className="h-3 w-px bg-white/10" />
-         <span className="text-white font-bold">{idx + 1} OF {pages.length}</span>
+         <div className="h-3 w-px dark:bg-white/10 bg-black/10" />
+         <span className="dark:text-white text-slate-900 font-bold">{idx + 1} OF {pages.length}</span>
          {page?.filename && (
            <span className="opacity-50 text-[9px] truncate max-w-[100px]">{page.filename}</span>
          )}
