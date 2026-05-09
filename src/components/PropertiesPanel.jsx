@@ -200,102 +200,10 @@ export default function PropertiesPanel() {
                   className="flex items-center gap-1.5 text-[10px] font-bold text-indigo-400 hover:text-indigo-300 transition-colors group"
                 >
                   <FileJson className="w-3 h-3 group-hover:scale-110 transition-transform" />
-                  VIEW AI JSON
+                  EXTRACTED VALUES
                 </button>
              </div>
-             <div className="space-y-3">
-               
-               {/* Search Bar */}
-               <div className="relative">
-                 <input 
-                   placeholder="Search extracted data..." 
-                   className="w-full bg-[#13161e] border border-white/5 rounded-lg px-3 py-2 text-[10px] text-white placeholder-slate-600 focus:border-indigo-500/50 outline-none transition-all"
-                   value={searchQuery}
-                   onChange={e => setSearchQuery(e.target.value)}
-                 />
-                 <List className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-600" />
-               </div>
 
-               <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1 scrollbar-thin">
-                 {filteredFields.map(([k, v]) => (
-                   <div 
-                     key={k} 
-                     className={`
-                       flex items-start gap-3 p-3 rounded-xl transition-all border group
-                       ${checkedFields.has(k) 
-                         ? 'bg-emerald-500/10 border-emerald-500/30' 
-                         : 'bg-white/5 border-white/5 hover:border-indigo-500/30'}
-                     `}
-                   >
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); toggleCheck(k); }}
-                        className={`
-                          mt-0.5 w-5 h-5 rounded-md border flex items-center justify-center transition-all shrink-0
-                          ${checkedFields.has(k) ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-white/20 text-transparent hover:border-white/40'}
-                        `}
-                      >
-                        <Check className="w-3.5 h-3.5" />
-                      </button>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex justify-between items-start">
-                          <p className={`text-[10px] font-bold uppercase tracking-wide truncate ${checkedFields.has(k) ? 'text-emerald-400' : 'text-slate-400'}`}>
-                            {k.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
-                          </p>
-                          {checkedFields.has(k) && <Check className="w-3 h-3 text-emerald-500 animate-in zoom-in" />}
-                        </div>
-                        <input 
-                          value={v}
-                          onChange={(e) => {
-                             const newVal = e.target.value;
-                             setFields(prev => ({ ...prev, [k]: newVal }));
-                          }}
-                          className={`
-                            w-full bg-[#1a1d24]/50 border border-white/5 rounded-lg px-2.5 py-1.5 text-xs font-mono mt-1.5 outline-none focus:border-indigo-500/30 transition-all
-                            ${checkedFields.has(k) ? 'text-emerald-100' : 'text-indigo-200'}
-                          `}
-                        />
-                      </div>
-                   </div>
-                 ))}
-                 
-                 {filteredFields.length === 0 && searchQuery && (
-                   <div className="text-center py-4 text-slate-600 text-[10px] italic">No matches for "{searchQuery}"</div>
-                 )}
-               </div>
-
-               {/* Add Field Input */}
-               {isAddingField ? (
-                  <div className="bg-white/5 border border-indigo-500/30 rounded-xl p-3 space-y-2 animate-in fade-in slide-in-from-top-1 shadow-2xl">
-                     <input 
-                       placeholder="Label (e.g. Loan Number)" 
-                       className="w-full bg-[#13161e] border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-700 outline-none focus:border-indigo-500/50"
-                       value={newFieldName}
-                       onChange={e => setNewFieldName(e.target.value)}
-                       autoFocus
-                     />
-                     <input 
-                       placeholder="Value" 
-                       className="w-full bg-[#13161e] border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-700 outline-none focus:border-indigo-500/50"
-                       value={newFieldValue}
-                       onChange={e => setNewFieldValue(e.target.value)}
-                     />
-                     <div className="flex gap-2">
-                        <button onClick={handleAddField} className="flex-1 bg-indigo-600 hover:bg-indigo-500 py-2 rounded-lg text-[10px] font-bold transition-all active:scale-95">ADD TO CHECKLIST</button>
-                        <button onClick={() => setIsAddingField(false)} className="px-3 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-[10px] font-bold transition-all">CANCEL</button>
-                     </div>
-                  </div>
-               ) : (
-                  <button 
-                    onClick={() => setIsAddingField(true)}
-                    className="w-full py-3 border border-dashed border-white/10 rounded-xl text-[10px] font-bold text-slate-500 hover:border-indigo-500/30 hover:text-indigo-400 transition-all flex items-center justify-center gap-2 group"
-                  >
-                     <div className="w-5 h-5 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-indigo-500/20 transition-all">
-                        <Check className="w-3 h-3" />
-                     </div> 
-                     ADD MANUAL FIELD
-                  </button>
-               )}
-             </div>
           </Section>
         )}
         <Section title="Documents" icon={<Layers className="w-3.5 h-3.5" />}>
@@ -427,35 +335,146 @@ export default function PropertiesPanel() {
         </div>
       )}
 
-      {/* Raw JSON Modal */}
+      {/* Extracted Values Modal */}
       {showRawJson && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md">
-          <div className="bg-[#0d0f14] border border-white/10 rounded-2xl w-full max-w-2xl max-h-[80vh] flex flex-col shadow-2xl animate-in zoom-in duration-200">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
+          <div className="bg-[#0d0f14] border border-white/10 rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl animate-in zoom-in duration-200">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 shrink-0">
               <div className="flex items-center gap-2">
                 <FileJson className="w-4 h-4 text-indigo-400" />
-                <h3 className="text-sm font-bold text-white uppercase tracking-widest">Raw Extracted Data</h3>
+                <h3 className="text-sm font-bold text-white uppercase tracking-widest">Extracted Values</h3>
               </div>
               <button onClick={() => setShowRawJson(false)} className="p-2 hover:bg-white/5 rounded-full text-slate-500 hover:text-white transition-all">
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto p-6 scrollbar-thin">
-              <pre className="text-[11px] font-mono text-indigo-300 bg-indigo-500/5 p-4 rounded-xl border border-indigo-500/10 leading-relaxed">
-                {Object.keys(fields).length > 0 
-                  ? JSON.stringify(fields, null, 2) 
-                  : "// No data extracted yet or document processing in progress."}
-              </pre>
+            
+            <div className="flex-1 overflow-y-auto p-6 scrollbar-thin bg-surface-900/50">
+               <div className="space-y-4">
+                 {/* Search Bar */}
+                 <div className="relative">
+                   <input 
+                     placeholder="Search extracted data..." 
+                     className="w-full bg-[#13161e] border border-white/5 rounded-lg px-4 py-3 text-sm text-white placeholder-slate-600 focus:border-indigo-500/50 outline-none transition-all"
+                     value={searchQuery}
+                     onChange={e => setSearchQuery(e.target.value)}
+                   />
+                   <List className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600" />
+                 </div>
+
+                 <div className="space-y-3">
+                   {filteredFields.map(([k, v]) => (
+                     <div 
+                       key={k} 
+                       className={`
+                         flex items-start gap-3 p-4 rounded-xl transition-all border group
+                         ${checkedFields.has(k) 
+                           ? 'bg-emerald-500/10 border-emerald-500/30' 
+                           : 'bg-white/5 border-white/5 hover:border-indigo-500/30'}
+                       `}
+                     >
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); toggleCheck(k); }}
+                          className={`
+                            mt-1 w-6 h-6 rounded-md border flex items-center justify-center transition-all shrink-0
+                            ${checkedFields.has(k) ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-white/20 text-transparent hover:border-white/40'}
+                          `}
+                        >
+                          <Check className="w-4 h-4" />
+                        </button>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex justify-between items-start">
+                            <p className={`text-xs font-bold uppercase tracking-wide truncate mb-1 ${checkedFields.has(k) ? 'text-emerald-400' : 'text-slate-400'}`}>
+                              {k.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                            </p>
+                            {checkedFields.has(k) && <Check className="w-4 h-4 text-emerald-500 animate-in zoom-in" />}
+                          </div>
+                          <input 
+                            value={v}
+                            onChange={(e) => {
+                               const newVal = e.target.value;
+                               setFields(prev => ({ ...prev, [k]: newVal }));
+                            }}
+                            className={`
+                              w-full bg-[#1a1d24]/80 border border-white/5 rounded-lg px-3 py-2 text-sm font-mono mt-1 outline-none focus:border-indigo-500/50 transition-all
+                              ${checkedFields.has(k) ? 'text-emerald-100' : 'text-indigo-200'}
+                            `}
+                          />
+                        </div>
+                     </div>
+                   ))}
+                   
+                   {filteredFields.length === 0 && searchQuery && (
+                     <div className="text-center py-8 text-slate-600 text-sm italic">No matches for "{searchQuery}"</div>
+                   )}
+                 </div>
+
+                 {/* Add Field Input */}
+                 {isAddingField ? (
+                    <div className="bg-white/5 border border-indigo-500/30 rounded-xl p-4 space-y-3 animate-in fade-in shadow-2xl mt-4">
+                       <input 
+                         placeholder="Label (e.g. Loan Number)" 
+                         className="w-full bg-[#13161e] border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white placeholder-slate-700 outline-none focus:border-indigo-500/50"
+                         value={newFieldName}
+                         onChange={e => setNewFieldName(e.target.value)}
+                         autoFocus
+                       />
+                       <input 
+                         placeholder="Value" 
+                         className="w-full bg-[#13161e] border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white placeholder-slate-700 outline-none focus:border-indigo-500/50"
+                         value={newFieldValue}
+                         onChange={e => setNewFieldValue(e.target.value)}
+                       />
+                       <div className="flex gap-3 pt-2">
+                          <button onClick={handleAddField} className="flex-1 bg-indigo-600 hover:bg-indigo-500 py-2.5 rounded-lg text-xs font-bold transition-all active:scale-95">ADD FIELD</button>
+                          <button onClick={() => setIsAddingField(false)} className="px-4 py-2.5 bg-white/5 hover:bg-white/10 rounded-lg text-xs font-bold transition-all">CANCEL</button>
+                       </div>
+                    </div>
+                 ) : (
+                    <button 
+                      onClick={() => setIsAddingField(true)}
+                      className="w-full mt-4 py-4 border border-dashed border-white/10 rounded-xl text-xs font-bold text-slate-500 hover:border-indigo-500/30 hover:text-indigo-400 transition-all flex items-center justify-center gap-2 group"
+                    >
+                       <div className="w-6 h-6 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-indigo-500/20 transition-all">
+                          <Check className="w-4 h-4" />
+                       </div> 
+                       ADD MANUAL FIELD
+                    </button>
+                 )}
+               </div>
             </div>
-            <div className="p-4 bg-white/5 flex justify-end">
+
+            <div className="p-4 bg-white/5 flex justify-end gap-3 shrink-0 border-t border-white/5">
               <button 
                 onClick={() => {
                   navigator.clipboard.writeText(JSON.stringify(combinedExtractedData, null, 2))
                   alert('JSON copied to clipboard')
                 }}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold rounded-lg transition-all active:scale-95"
+                className="px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-300 text-[10px] font-bold rounded-lg transition-all active:scale-95"
               >
-                COPY TO CLIPBOARD
+                COPY RAW JSON
+              </button>
+              <button 
+                onClick={() => {
+                  const keys = Object.keys(fields);
+                  if (keys.length === 0) return;
+                  let csvContent = "data:text/csv;charset=utf-8,Field,Value\n";
+                  keys.forEach(k => {
+                    const escapedKey = `"${k.replace(/"/g, '""')}"`;
+                    const escapedValue = `"${String(fields[k] || '').replace(/"/g, '""')}"`;
+                    csvContent += `${escapedKey},${escapedValue}\n`;
+                  });
+                  const encodedUri = encodeURI(csvContent);
+                  const link = document.createElement("a");
+                  link.setAttribute("href", encodedUri);
+                  link.setAttribute("download", `${docName || 'extracted_data'}.csv`);
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                }}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold rounded-lg transition-all active:scale-95 flex items-center gap-2"
+              >
+                EXPORT TO EXCEL
               </button>
             </div>
           </div>
