@@ -6,13 +6,13 @@ import MainCanvas from '../components/MainCanvas'
 import PropertiesPanel from '../components/PropertiesPanel'
 import axios from 'axios'
 import { ArrowLeft, Loader2, AlertCircle, Scissors, FileUp, CheckCircle, List, Check, AlertTriangle, ChevronDown } from 'lucide-react'
-import { exportBlob, fetchConfiguredDocTypes } from '../api/client'
+import { exportBlob, fetchChecklists } from '../api/client'
 
 export default function WorkspacePage() {
   const { blobId } = useParams()
   const navigate = useNavigate()
-  const { blob, documents, loading, error, loadBlob, selectedDocumentId } = useWorkspaceStore()
-  const [availableTypes, setAvailableTypes] = useState([])
+  const { blob, documents, loading, error, loadBlob, selectedDocumentId, saveDocumentChecklists } = useWorkspaceStore()
+  const [globalChecklists, setGlobalChecklists] = useState([])
   const [showChecklist, setShowChecklist] = useState(false)
   const [exporting, setExporting] = useState(false)
 
@@ -30,7 +30,7 @@ export default function WorkspacePage() {
 
   useEffect(() => { 
     loadBlob(blobId)
-    fetchConfiguredDocTypes().then(({ data }) => setAvailableTypes(data.data))
+    fetchChecklists().then(({ data }) => setGlobalChecklists(data.data))
   }, [blobId])
 
   if (loading) {
@@ -88,21 +88,34 @@ export default function WorkspacePage() {
                   const doc = documents.find(d => d.id === selectedDocumentId)
                   if (!doc) return <p className="text-[10px] text-slate-600 italic">Select a document to see its checklist.</p>
                   
-                  const config = availableTypes.find(t => t.code === doc.documentType)
-                  const items = config?.checklists || []
+                  if (globalChecklists.length === 0) return <p className="text-[10px] text-slate-600 italic">No global checklists defined.</p>
 
-                  if (items.length === 0) return <p className="text-[10px] text-slate-600 italic">No checklist defined for {doc.documentType}.</p>
+                  const checkedItems = doc.checklists || [];
+
+                  const toggleCheck = (text) => {
+                    const next = checkedItems.includes(text) 
+                      ? checkedItems.filter(t => t !== text)
+                      : [...checkedItems, text];
+                    saveDocumentChecklists(doc.id, next);
+                  };
 
                   return (
                     <div className="space-y-2">
-                      {items.map((item, idx) => (
-                        <div key={idx} className="flex items-start gap-3 p-2.5 rounded-xl bg-white/5 border border-white/5">
-                          <div className="mt-0.5 shrink-0 w-4 h-4 rounded border border-white/20 flex items-center justify-center">
-                            {/* In a real app, this would be tied to the verified state or a persistent checklist state */}
+                      {globalChecklists.map((item, idx) => {
+                        const isChecked = checkedItems.includes(item.text);
+                        return (
+                          <div 
+                            key={idx} 
+                            onClick={() => toggleCheck(item.text)}
+                            className="flex items-start gap-3 p-2.5 rounded-xl bg-white/5 border border-white/5 cursor-pointer hover:bg-white/10 transition-colors"
+                          >
+                            <div className={`mt-0.5 shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${isChecked ? 'bg-indigo-500 border-indigo-500 text-white' : 'border-white/20'}`}>
+                              {isChecked && <Check className="w-3 h-3" />}
+                            </div>
+                            <span className={`text-[11px] leading-tight transition-colors ${isChecked ? 'text-slate-400 line-through' : 'text-slate-300'}`}>{item.text}</span>
                           </div>
-                          <span className="text-[11px] text-slate-300 leading-tight">{item}</span>
-                        </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   )
                 })()}
