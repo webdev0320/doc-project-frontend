@@ -22,7 +22,7 @@ export default function MainCanvas() {
   const next = () => idx < pages.length - 1 && selectPage(pages[idx + 1].id)
 
   return (
-    <div className="flex flex-col h-full bg-[#0d0f14] relative">
+    <div className="flex flex-col h-full bg-transparent relative">
       {/* Canvas Area */}
       <div className="flex-1 relative overflow-hidden">
         {page ? (
@@ -40,51 +40,51 @@ export default function MainCanvas() {
             {({ zoomIn, zoomOut, resetTransform, centerView }) => (
               <>
                 {/* Toolbar - Floating & Glassy */}
-                <div className="absolute top-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 px-4 py-2 glass rounded-2xl shadow-2xl dark:border-white/10 border-black/10">
+                <div className="absolute top-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 px-4 py-2 glass rounded-2xl shadow-2xl border-main">
                   <button className="btn-ghost p-2" onClick={prev} disabled={idx <= 0}>
                     <ChevronLeft className="w-4 h-4" />
                   </button>
 
-                  <div className="h-6 w-px dark:bg-white/10 bg-black/10 mx-2" />
+                  <div className="h-6 w-px dark:bg-white/10 bg-surface/10 mx-2" />
 
-                  <button className={`p-2 rounded-xl transition-all ${isPanning ? 'bg-indigo-600 text-white' : 'dark:text-slate-400 text-slate-600 hover:dark:bg-white/5 bg-black/5'}`} onClick={() => setIsPanning(true)}>
+                  <button className={`p-2 rounded-xl transition-all ${isPanning ? 'bg-indigo-600 text-white' : 'text-muted hover:bg-black/5 dark:hover:bg-white/5'}`} onClick={() => setIsPanning(true)}>
                     <Hand className="w-4 h-4" />
                   </button>
-                  <button className={`p-2 rounded-xl transition-all ${!isPanning ? 'bg-indigo-600 text-white' : 'dark:text-slate-400 text-slate-600 hover:dark:bg-white/5 bg-black/5'}`} onClick={() => setIsPanning(false)}>
+                  <button className={`p-2 rounded-xl transition-all ${!isPanning ? 'bg-indigo-600 text-white' : 'text-muted hover:bg-black/5 dark:hover:bg-white/5'}`} onClick={() => setIsPanning(false)}>
                     <MousePointer2 className="w-4 h-4" />
                   </button>
 
-                  <div className="h-6 w-px dark:bg-white/10 bg-black/10 mx-2" />
+                  <div className="h-6 w-px dark:bg-white/10 bg-surface/10 mx-2" />
 
                   <button 
                     id="zoom-out" 
-                    className="btn-ghost p-2 dark:text-slate-400 text-slate-600 hover:dark:text-white text-slate-900"
+                    className="btn-ghost p-2 text-muted hover:text-main"
                     onClick={() => zoomOut()}
                   >
                     <ZoomOut className="w-4 h-4" />
                   </button>
                   <button 
                     id="zoom-in" 
-                    className="btn-ghost p-2 dark:text-slate-400 text-slate-600 hover:dark:text-white text-slate-900"
+                    className="btn-ghost p-2 text-muted hover:text-main"
                     onClick={() => zoomIn()}
                   >
                     <ZoomIn className="w-4 h-4" />
                   </button>
 
-                  <div className="h-6 w-px dark:bg-white/10 bg-black/10 mx-2" />
+                  <div className="h-6 w-px dark:bg-white/10 bg-surface/10 mx-2" />
 
-                  <button className="btn-ghost p-2 dark:text-slate-400 text-slate-600 hover:dark:text-white text-slate-900" onClick={() => rotatePage(page?.id)}>
+                  <button className="btn-ghost p-2 text-muted hover:text-main" onClick={() => rotatePage(page?.id)}>
                     <RotateCcw className="w-4 h-4" />
                   </button>
 
                   <button 
-                    className="btn-ghost p-2 dark:text-slate-400 text-slate-600 hover:dark:text-white text-slate-900"
+                    className="btn-ghost p-2 text-muted hover:text-main"
                     onClick={() => window.open(`${S3_BASE}/${page?.s3Path}`, '_blank')}
                   >
                     <Download className="w-4 h-4" />
                   </button>
 
-                  <div className="h-6 w-px dark:bg-white/10 bg-black/10 mx-2" />
+                  <div className="h-6 w-px dark:bg-white/10 bg-surface/10 mx-2" />
 
                   <button className="btn-ghost p-2" onClick={next} disabled={idx >= pages.length - 1}>
                     <ChevronRight className="w-4 h-4" />
@@ -111,14 +111,14 @@ export default function MainCanvas() {
                         }}
                        >
                         {imgError ? (
-                          <div className="w-[600px] aspect-[3/4] flex items-center justify-center bg-surface-900 text-slate-600 rounded-lg">
+                          <div className="w-[600px] aspect-[3/4] flex items-center justify-center bg-main text-slate-600 rounded-lg">
                              Image format error
                           </div>
                         ) : (
                           <div className="relative">
                             {/* The document itself with its own shadow and background */}
                             <div 
-                              className="relative bg-white shadow-[0_40px_100px_-10px_rgba(0,0,0,0.9)] rounded-sm overflow-hidden transition-all duration-400 ease-out"
+                              className="relative bg-white dark:shadow-[0_40px_100px_-10px_rgba(0,0,0,0.9)] shadow-[0_40px_100px_-10px_rgba(0,0,0,0.2)] rounded-sm overflow-hidden transition-all duration-400 ease-out"
                               style={{ 
                                 transform: `rotate(${page.rotation}deg)`,
                                 width: isRotated ? 'min(80vh, 1200px)' : 'min(90vw, 850px)',
@@ -140,16 +140,16 @@ export default function MainCanvas() {
 
                             {/* AI Ribbon - Pinned to the top of the viewing area, not the rotated content */}
                             {page.aiLabel && (
-                              <div className="absolute -top-16 left-0 right-0 flex items-center justify-between px-5 py-3 bg-[#1a1d24]/90 backdrop-blur-2xl border dark:border-white/10 border-black/10 rounded-2xl shadow-2xl z-40 animate-in slide-in-from-top-4 duration-500">
+                               <div className="absolute -top-16 left-0 right-0 flex items-center justify-between px-5 py-3 bg-surface/80 backdrop-blur-2xl border border-main rounded-2xl shadow-2xl z-40 animate-in slide-in-from-top-4 duration-500">
                                  <div className="flex items-center gap-3">
                                    <div className="w-2.5 h-2.5 rounded-full bg-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.5)] animate-pulse" />
                                    <div className="flex flex-col">
-                                     <span className="text-[10px] uppercase font-bold text-slate-500 tracking-tighter">Classification</span>
-                                     <span className="text-[13px] font-black dark:text-white text-slate-900 tracking-wide uppercase">{page.aiLabel}</span>
+                                     <span className="text-[10px] uppercase font-bold text-muted tracking-tighter">Classification</span>
+                                     <span className="text-[13px] font-black text-main tracking-wide uppercase">{page.aiLabel}</span>
                                    </div>
                                  </div>
                                  <div className="flex items-center gap-4">
-                                   <div className="h-8 w-px dark:bg-white/10 bg-black/10" />
+                                   <div className="h-8 w-px dark:bg-white/10 bg-surface/10" />
                                    <ConfidenceBadge score={page.confidenceScore} />
                                  </div>
                               </div>
@@ -171,10 +171,10 @@ export default function MainCanvas() {
       </div>
 
       {/* Page Selector Footer */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-4 px-4 py-2 glass rounded-full text-[11px] font-mono dark:text-slate-400 text-slate-600">
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-4 px-4 py-2 glass rounded-full text-[11px] font-mono text-muted">
          <span>DOCUMENT_FLIGHT_PATH</span>
-         <div className="h-3 w-px dark:bg-white/10 bg-black/10" />
-         <span className="dark:text-white text-slate-900 font-bold">{idx + 1} OF {pages.length}</span>
+         <div className="h-3 w-px dark:bg-white/10 bg-surface/10" />
+         <span className="text-main font-bold">{idx + 1} OF {pages.length}</span>
          {page?.filename && (
            <span className="opacity-50 text-[9px] truncate max-w-[100px]">{page.filename}</span>
          )}
@@ -189,7 +189,7 @@ function ConfidenceBadge({ score }) {
   return (
     <div className={`
       px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-colors
-      ${isHigh ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}
+      ${isHigh ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20'}
     `}>
       {pct}% AI CONFIDENCE
     </div>

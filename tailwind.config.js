@@ -6,31 +6,24 @@ export default {
     extend: {
       colors: {
         surface: {
-          900: 'rgb(var(--surface-900) / <alpha-value>)',
-          800: 'rgb(var(--surface-800) / <alpha-value>)',
-          700: 'rgb(var(--surface-700) / <alpha-value>)',
-          600: 'rgb(var(--surface-600) / <alpha-value>)',
-          500: 'rgb(var(--surface-500) / <alpha-value>)',
+          900: 'var(--app-bg)',
+          800: 'var(--app-surface)',
+          700: 'var(--app-surface-hover)',
+          600: 'var(--app-border)',
+          500: 'var(--app-text-muted)',
         },
         text: {
-          main: 'rgb(var(--text-main) / <alpha-value>)',
-          muted: 'rgb(var(--text-muted) / <alpha-value>)',
-          inverse: 'rgb(var(--text-inverse) / <alpha-value>)',
+          main: 'var(--app-text)',
+          muted: 'var(--app-text-muted)',
         },
         border: {
-          main: 'rgb(var(--border-main) / <alpha-value>)',
+          main: 'var(--app-border)',
         },
         accent: {
           400: '#818cf8',
           500: '#6366f1',
           600: '#4f46e5',
         },
-        verified: '#22d3ee',
-        flagged: '#f87171',
-      },
-      fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
-        mono: ['JetBrains Mono', 'monospace'],
       },
     },
   },

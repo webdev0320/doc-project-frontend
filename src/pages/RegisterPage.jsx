@@ -21,17 +21,17 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0d0f14] flex items-center justify-center p-6 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-indigo-500/10 via-transparent to-transparent">
+    <div className="min-h-screen bg-surface-900 flex items-center justify-center p-6 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-indigo-500/10 via-transparent to-transparent">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="flex flex-col items-center mb-10 fade-up">
-           <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-2xl shadow-indigo-600/40 mb-6 font-bold text-2xl text-white">IDP</div>
-           <h1 className="text-3xl font-bold text-white tracking-tight text-center">Join the Processing Hub</h1>
+           <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-2xl shadow-indigo-600/40 mb-6 font-bold text-2xl dark:text-white text-slate-900">IDP</div>
+           <h1 className="text-3xl font-bold dark:text-white text-slate-900 tracking-tight text-center">Join the Processing Hub</h1>
            <p className="text-slate-500 mt-2 text-center text-sm px-8">Complete the registration to start automating document classification locally.</p>
         </div>
 
         {/* Card */}
-        <div className="glass-morphism rounded-3xl border border-white/5 p-8 shadow-2xl scale-in">
+        <div className="glass-morphism rounded-3xl border dark:border-white/5 border-black/5 p-8 shadow-2xl scale-in">
           <form className="space-y-5" onSubmit={handleSubmit}>
             {error && (
               <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-xs text-red-200 text-center animate-shake">
@@ -49,7 +49,7 @@ export default function RegisterPage() {
                   type="text" 
                   value={name}
                   onChange={e => setName(e.target.value)}
-                  className="w-full bg-[#13161e] border border-white/10 rounded-2xl pl-11 pr-4 py-3.5 text-sm text-white focus:outline-none focus:border-indigo-500/50 transition-all"
+                  className="w-full bg-surface-800 border dark:border-white/10 border-black/10 rounded-2xl pl-11 pr-4 py-3.5 text-sm dark:text-white text-slate-900 focus:outline-none focus:border-indigo-500/50 transition-all"
                   placeholder="John Doe"
                   required
                 />
@@ -66,7 +66,7 @@ export default function RegisterPage() {
                   type="email" 
                   value={email}
                   onChange={e => setEmail(e.target.value)}
-                  className="w-full bg-[#13161e] border border-white/10 rounded-2xl pl-11 pr-4 py-3.5 text-sm text-white focus:outline-none focus:border-indigo-500/50 transition-all"
+                  className="w-full bg-surface-800 border dark:border-white/10 border-black/10 rounded-2xl pl-11 pr-4 py-3.5 text-sm dark:text-white text-slate-900 focus:outline-none focus:border-indigo-500/50 transition-all"
                   placeholder="name@company.com"
                   required
                 />
@@ -83,7 +83,7 @@ export default function RegisterPage() {
                   type="password" 
                   value={password}
                   onChange={e => setPassword(e.target.value)}
-                  className="w-full bg-[#13161e] border border-white/10 rounded-2xl pl-11 pr-4 py-3.5 text-sm text-white focus:outline-none focus:border-indigo-500/50 transition-all"
+                  className="w-full bg-surface-800 border dark:border-white/10 border-black/10 rounded-2xl pl-11 pr-4 py-3.5 text-sm dark:text-white text-slate-900 focus:outline-none focus:border-indigo-500/50 transition-all"
                   placeholder="Minimum 8 characters"
                   required
                   minLength={8}

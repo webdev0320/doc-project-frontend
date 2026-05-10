@@ -5,15 +5,17 @@ import ThumbnailSidebar from '../components/ThumbnailSidebar'
 import MainCanvas from '../components/MainCanvas'
 import PropertiesPanel from '../components/PropertiesPanel'
 import axios from 'axios'
-import { ArrowLeft, Loader2, AlertCircle, Scissors, FileUp, CheckCircle, List, Check, AlertTriangle, ChevronDown, Sun, Moon } from 'lucide-react'
+import { ArrowLeft, Loader2, AlertCircle, Scissors, FileUp, CheckCircle, List, Check, AlertTriangle, ChevronDown, Sun, Moon, Download } from 'lucide-react'
 import { exportBlob, fetchChecklists } from '../api/client'
 import useThemeStore from '../store/themeStore'
+import useToastStore from '../store/toastStore'
 
 export default function WorkspacePage() {
   const { blobId } = useParams()
   const navigate = useNavigate()
   const { blob, documents, loading, error, loadBlob, selectedDocumentId, saveDocumentChecklists } = useWorkspaceStore()
   const { theme, toggleTheme } = useThemeStore()
+  const { showToast } = useToastStore()
   const [globalChecklists, setGlobalChecklists] = useState([])
   const [showChecklist, setShowChecklist] = useState(false)
   const [exporting, setExporting] = useState(false)
@@ -22,12 +24,67 @@ export default function WorkspacePage() {
     setExporting(true)
     try {
       await exportBlob(blobId)
-      alert('Document successfully exported to SFTP storage.')
+      showToast('Document successfully exported to SFTP', 'success')
     } catch (e) {
-      alert('Export failed: ' + (e.response?.data?.error || e.message))
+      showToast('Export failed: ' + (e.response?.data?.error || e.message), 'error')
     } finally {
       setExporting(false)
     }
+  }
+
+  const handleDownloadReport = () => {
+    if (!blob || !documents.length) return
+
+    // Header row
+    const headers = [
+      'ClientLoanNo',
+      'SourceFileName',
+      'TotalFilePages',
+      'Document ID',
+      'Document Type',
+      'PageFrom',
+      'PageTo',
+      'PageCount',
+      'Document Title',
+      'Total Pages',
+      'Extracted Value Page'
+    ]
+
+    // Data rows
+    const rows = documents.map(doc => {
+      // Find the actual page objects to get their original index
+      const docPagesSorted = [...doc.pages].sort((a, b) => a.order - b.order)
+      const firstPage = pages.find(p => p.id === docPagesSorted[0]?.pageId)
+      const lastPage = pages.find(p => p.id === docPagesSorted[docPagesSorted.length - 1]?.pageId)
+
+      return [
+        `"${blob.batchNo || '—'}"`,
+        `"${blob.filename}"`,
+        blob.pageCount,
+        doc.id,
+        `"${doc.documentType}"`,
+        (firstPage?.originalIndex ?? 0) + 1,
+        (lastPage?.originalIndex ?? 0) + 1,
+        doc.pages.length,
+        `"${doc.name || doc.documentType}.pdf"`,
+        blob.pageCount,
+        (firstPage?.originalIndex ?? 0) + 1
+      ]
+    })
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(r => r.join(','))
+    ].join('\n')
+
+    const blobUrl = URL.createObjectURL(new Blob([csvContent], { type: 'text/csv;charset=utf-8;' }))
+    const link = document.createElement('a')
+    link.href = blobUrl
+    link.setAttribute('download', `Reconciliation_Report_${blob.batchNo || blob.filename}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    showToast('Report downloaded successfully', 'success')
   }
 
   useEffect(() => { 
@@ -37,27 +94,31 @@ export default function WorkspacePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-surface-900 flex flex-col items-center justify-center gap-4">
-        <Loader2 className="w-10 h-10 text-indigo-400 animate-spin" />
-        <p className="dark:text-slate-400 text-slate-600">Loading workspace…</p>
+      <div className="min-h-screen bg-main flex flex-col items-center justify-center gap-4">
+        <Loader2 className="w-10 h-10 text-indigo-600 dark:text-indigo-400 animate-spin" />
+        <p className="text-muted">Loading workspace…</p>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-surface-900 flex flex-col items-center justify-center gap-4">
-        <AlertCircle className="w-10 h-10 text-red-400" />
-        <p className="text-red-300">{error}</p>
+      <div className="min-h-screen bg-main flex flex-col items-center justify-center gap-4">
+        <AlertCircle className="w-10 h-10 text-red-600 dark:text-red-400" />
+        <p className="text-red-600 dark:text-red-400">{error}</p>
         <button className="btn-ghost" onClick={() => navigate('/')}>← Back to Dashboard</button>
       </div>
     )
   }
 
   return (
-    <div className="h-screen flex flex-col bg-surface-900 overflow-hidden">
+    <div className="h-screen flex flex-col bg-main overflow-hidden relative">
+      {/* Premium ambient background mesh */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] dark:from-indigo-500/10 from-indigo-500/5 dark:via-transparent via-transparent dark:to-transparent to-transparent pointer-events-none" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,_var(--tw-gradient-stops))] dark:from-blue-500/10 from-blue-500/5 dark:via-transparent via-transparent dark:to-transparent to-transparent pointer-events-none" />
+      
       {/* Top bar */}
-      <header className="flex items-center gap-4 px-4 py-2.5 bg-surface-800 border-b dark:border-white/5 border-black/5 shrink-0">
+      <header className="relative z-10 flex items-center gap-4 px-4 py-2.5 bg-surface/80 backdrop-blur-2xl border-b border-main shrink-0 shadow-sm">
         <button
           id="back-to-dashboard"
           onClick={() => navigate('/')}
@@ -65,14 +126,14 @@ export default function WorkspacePage() {
         >
           <ArrowLeft className="w-3.5 h-3.5" /> Dashboard
         </button>
-        <div className="h-4 w-px dark:bg-white/10 bg-black/10" />
-        <span className="text-sm font-medium dark:text-white text-slate-900 truncate">{blob?.filename}</span>
-        <span className="text-xs text-slate-500">{blob?.pageCount} pages</span>
+        <div className="h-4 w-px bg-main" />
+        <span className="text-sm font-medium text-main truncate">{blob?.filename}</span>
+        <span className="text-xs text-muted">{blob?.pageCount} pages</span>
         <div className="ml-auto flex items-center gap-4">
 
           <button 
             onClick={toggleTheme}
-            className="p-1.5 rounded-lg dark:bg-white/5 bg-black/5 dark:text-slate-400 text-slate-600 dark:hover:bg-white/10 hover:bg-black/10 transition-all border dark:border-white/5 border-black/5"
+            className="p-1.5 rounded-lg bg-main text-muted dark:hover:bg-white/10 hover:bg-surface/10 transition-all border border-main"
             title="Toggle Theme"
           >
             {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
@@ -81,7 +142,7 @@ export default function WorkspacePage() {
           <div className="relative">
             <button 
               onClick={() => setShowChecklist(!showChecklist)}
-              className="flex items-center gap-2 px-3 py-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 text-xs font-bold rounded-lg border border-indigo-500/20 transition-all active:scale-95"
+              className="flex items-center gap-2 px-3 py-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-600 dark:text-indigo-400 text-xs font-bold rounded-lg border border-indigo-500/20 transition-all active:scale-95"
             >
               <List className="w-3.5 h-3.5" />
               Checklist
@@ -89,8 +150,8 @@ export default function WorkspacePage() {
             </button>
 
             {showChecklist && (
-              <div className="absolute top-full right-0 mt-2 w-80 bg-[#13161e] border dark:border-white/10 border-black/10 rounded-2xl shadow-2xl z-50 p-4 fade-up">
-                <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+              <div className="absolute top-full right-0 mt-2 w-80 bg-surface border border-main rounded-2xl shadow-2xl z-50 p-4 fade-up">
+                <h3 className="text-[10px] font-bold text-muted uppercase tracking-widest mb-3 flex items-center gap-2">
                   <List className="w-3.5 h-3.5" /> Document Checklist
                 </h3>
                 
@@ -117,12 +178,12 @@ export default function WorkspacePage() {
                           <div 
                             key={idx} 
                             onClick={() => toggleCheck(item.text)}
-                            className="flex items-start gap-3 p-2.5 rounded-xl dark:bg-white/5 bg-black/5 border dark:border-white/5 border-black/5 cursor-pointer hover:dark:bg-white/10 bg-black/10 transition-colors"
+                            className="flex items-start gap-3 p-2.5 rounded-xl bg-main border border-main cursor-pointer hover:dark:bg-white/10 bg-surface/10 transition-colors"
                           >
-                            <div className={`mt-0.5 shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${isChecked ? 'bg-indigo-500 border-indigo-500 dark:text-white text-slate-900' : 'dark:border-white/20 border-black/20'}`}>
+                            <div className={`mt-0.5 shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${isChecked ? 'bg-indigo-500 border-indigo-500 text-main' : 'dark:border-white/20 border-black/20'}`}>
                               {isChecked && <Check className="w-3 h-3" />}
                             </div>
-                            <span className={`text-[11px] leading-tight transition-colors ${isChecked ? 'dark:text-slate-400 text-slate-600 line-through' : 'dark:text-slate-300 text-slate-700'}`}>{item.text}</span>
+                            <span className={`text-[11px] leading-tight transition-colors ${isChecked ? 'text-muted line-through' : 'text-muted'}`}>{item.text}</span>
                           </div>
                         )
                       })}
@@ -133,9 +194,17 @@ export default function WorkspacePage() {
             )}
           </div>
 
+          <button 
+            onClick={handleDownloadReport}
+            className="flex items-center gap-2 px-3 py-1.5 bg-surface-700 hover:bg-surface-600 text-main text-xs font-bold rounded-lg border border-main transition-all active:scale-95"
+          >
+            <Download className="w-3.5 h-3.5" />
+            Download Report
+          </button>
+
           <button
             onClick={() => navigate(`/workspace/${blobId}/split`)}
-            className="flex items-center gap-2 px-3 py-1.5 bg-surface-700 hover:bg-surface-600 dark:text-slate-200 text-slate-800 text-xs font-bold rounded-lg border dark:border-white/10 border-black/10 transition-all active:scale-95"
+            className="flex items-center gap-2 px-3 py-1.5 bg-surface-700 hover:bg-surface-600 text-main text-xs font-bold rounded-lg border border-main transition-all active:scale-95"
           >
             <Scissors className="w-3.5 h-3.5" /> Manage Flow
           </button>
@@ -144,8 +213,8 @@ export default function WorkspacePage() {
             onClick={handleExport}
             disabled={exporting || blob?.status !== 'COMPLETED'}
             className={`
-              flex items-center gap-2 px-3 py-1.5 dark:text-white text-slate-900 text-xs font-bold rounded-lg shadow-lg transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed
-              ${blob?.status === 'COMPLETED' ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/40' : 'bg-slate-700'}
+              flex items-center gap-2 px-3 py-1.5 text-white text-xs font-bold rounded-lg shadow-lg transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed
+              ${blob?.status === 'COMPLETED' ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/40' : 'bg-surface-600'}
             `}
           >
             {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileUp className="w-3.5 h-3.5" />}
@@ -157,19 +226,19 @@ export default function WorkspacePage() {
       </header>
 
       {/* 3-pane layout */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden relative z-10 p-4 gap-4">
         {/* Left: Thumbnail sidebar */}
-        <aside className="w-56 panel shrink-0">
+        <aside className="w-64 panel shrink-0 rounded-2xl border border-main">
           <ThumbnailSidebar />
         </aside>
 
         {/* Center: Main canvas */}
-        <main className="flex-1 overflow-hidden">
+        <main className="flex-1 overflow-hidden panel rounded-2xl border border-main">
           <MainCanvas />
         </main>
 
         {/* Right: Properties panel */}
-        <aside className="w-72 panel border-l dark:border-white/5 border-black/5 border-r-0 shrink-0">
+        <aside className="w-80 panel shrink-0 rounded-2xl border border-main">
           <PropertiesPanel />
         </aside>
       </div>
@@ -179,14 +248,14 @@ export default function WorkspacePage() {
 
 function StatusBadge({ status }) {
   const map = {
-    PENDING:    'bg-yellow-500/15 text-yellow-300 border-yellow-500/30',
-    PROCESSING: 'bg-blue-500/15 text-blue-300 border-blue-500/30',
-    COMPLETED:  'bg-green-500/15 text-green-300 border-green-500/30',
-    FAILED:     'bg-red-500/15 text-red-300 border-red-500/30',
+    PENDING:    'bg-yellow-500/15 text-yellow-600 dark:text-yellow-300 border-yellow-500/30',
+    PROCESSING: 'bg-blue-500/15 text-blue-600 dark:text-blue-300 border-blue-500/30',
+    COMPLETED:  'bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border-emerald-500/30',
+    FAILED:     'bg-red-500/15 text-red-600 dark:text-red-600 dark:text-red-400 border-red-500/30',
   }
   return (
     <span className={`badge border ${map[status] || map.PENDING}`}>
-      {status === 'PROCESSING' && <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />}
+      {status === 'PROCESSING' && <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />}
       {status}
     </span>
   )

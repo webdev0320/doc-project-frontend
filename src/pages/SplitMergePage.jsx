@@ -59,9 +59,9 @@ export default function SplitMergePage() {
 
 
   return (
-    <div className="h-screen flex flex-col bg-[#0d0f14] text-slate-300 overflow-hidden font-sans">
+    <div className="h-screen flex flex-col bg-surface-900 text-slate-300 overflow-hidden font-sans">
       {/* Header */}
-      <header className="h-16 flex items-center justify-between px-6 border-b border-white/5 bg-[#13161e]/50 backdrop-blur-xl z-20">
+      <header className="h-16 flex items-center justify-between px-6 border-b dark:border-white/5 border-black/5 bg-surface-800/50 backdrop-blur-xl z-20">
         <div className="flex items-center gap-4">
           <button 
             onClick={() => navigate(`/workspace/${blobId}`)}
@@ -70,7 +70,7 @@ export default function SplitMergePage() {
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
-            <h1 className="text-white font-bold leading-none mb-1">Split & Merge Manager</h1>
+            <h1 className="dark:text-white text-slate-900 font-bold leading-none mb-1">Split & Merge Manager</h1>
             <p className="text-[11px] text-slate-500 uppercase tracking-widest font-mono">
               Editing: {blob?.filename || 'Untitled Document'}
             </p>
@@ -85,7 +85,7 @@ export default function SplitMergePage() {
             Cancel
           </button>
           <button 
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg flex items-center gap-2 font-bold shadow-lg shadow-indigo-900/40 transition-all active:scale-95"
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 dark:text-white text-slate-900 rounded-lg flex items-center gap-2 font-bold shadow-lg shadow-indigo-900/40 transition-all active:scale-95"
             onClick={() => navigate(`/workspace/${blobId}`)}
           >
             <Save className="w-4 h-4" /> Commit Changes
@@ -94,12 +94,12 @@ export default function SplitMergePage() {
       </header>
 
       {/* Ribbon / Toolbar */}
-      <div className="px-6 py-3 bg-[#13161e] border-b border-white/5 flex items-center justify-between shadow-lg">
+      <div className="px-6 py-3 bg-surface-800 border-b dark:border-white/5 border-black/5 flex items-center justify-between shadow-lg">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-bold text-slate-500 uppercase">Selection</span>
             <div className="h-6 w-px bg-white/10 mx-1" />
-            <span className="text-white font-mono bg-white/5 px-2 py-0.5 rounded border border-white/10">
+            <span className="dark:text-white text-slate-900 font-mono bg-white/5 px-2 py-0.5 rounded border dark:border-white/10 border-black/10">
               {selectedIds.length} Pages Selected
             </span>
           </div>
@@ -154,7 +154,7 @@ export default function SplitMergePage() {
                       relative aspect-[3/4] rounded-xl border-2 transition-all duration-300 cursor-pointer overflow-hidden
                       ${isSelected 
                         ? 'border-indigo-500 ring-4 ring-indigo-500/20 shadow-2xl scale-[1.02]' 
-                        : 'border-white/10 hover:border-white/30 bg-surface-800'}
+                        : 'dark:border-white/10 border-black/10 hover:border-white/30 bg-surface-800'}
                     `}
                   >
                     <img 
@@ -164,13 +164,13 @@ export default function SplitMergePage() {
                     />
                     
                     {/* Page Number Overlay */}
-                    <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded text-[10px] font-mono text-white border border-white/10">
+                    <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded text-[10px] font-mono dark:text-white text-slate-900 border dark:border-white/10 border-black/10">
                       {index + 1}
                     </div>
 
                     {/* AI Label Overlay */}
                     <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent p-3 pt-8 pointer-events-none">
-                      <span className="text-[10px] font-bold text-white uppercase tracking-tight opacity-70">
+                      <span className="text-[10px] font-bold dark:text-white text-slate-900 uppercase tracking-tight opacity-70">
                         {page.aiLabel || 'Unclassified'}
                       </span>
                     </div>
@@ -178,7 +178,7 @@ export default function SplitMergePage() {
                     {/* Selection Indicator */}
                     {isSelected && (
                       <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-indigo-500 flex items-center justify-center shadow-lg animate-in zoom-in">
-                        <Check className="w-3 h-3 text-white stroke-[3px]" />
+                        <Check className="w-3 h-3 dark:text-white text-slate-900 stroke-[3px]" />
                       </div>
                     )}
 
@@ -188,7 +188,7 @@ export default function SplitMergePage() {
                         e.stopPropagation()
                         if (window.confirm('Delete this page?')) removePage(page.id)
                       }}
-                      className="absolute bottom-3 right-3 p-2 rounded-lg bg-red-500/90 text-white opacity-0 group-hover:opacity-100 transition-all hover:bg-red-600 shadow-xl active:scale-90"
+                      className="absolute bottom-3 right-3 p-2 rounded-lg bg-red-500/90 dark:text-white text-slate-900 opacity-0 group-hover:opacity-100 transition-all hover:bg-red-600 shadow-xl active:scale-90"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -228,7 +228,7 @@ export default function SplitMergePage() {
               onClick={() => uploadState === 'idle' && fileInputRef.current?.click()}
               className={`relative aspect-[3/4] rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-3 transition-all group
                 ${uploadState === 'idle'
-                  ? 'border-white/10 hover:border-indigo-500/50 hover:bg-indigo-500/5 cursor-pointer'
+                  ? 'dark:border-white/10 border-black/10 hover:border-indigo-500/50 hover:bg-indigo-500/5 cursor-pointer'
                   : 'border-indigo-500/30 bg-indigo-500/5 cursor-default'}
               `}
             >
@@ -305,7 +305,7 @@ export default function SplitMergePage() {
       </main>
 
       {/* Footer Info */}
-      <footer className="h-10 bg-black/40 border-t border-white/5 flex items-center justify-between px-6 text-[9px] font-mono text-slate-600">
+      <footer className="h-10 bg-black/40 border-t dark:border-white/5 border-black/5 flex items-center justify-between px-6 text-[9px] font-mono text-slate-600">
         <span>WORKFLOW_NODE: SPLIT_MERGE_ENGINE_V1</span>
         <div className="flex gap-4">
           <span>PAGES: {pages.length}</span>

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { FileText, Lock, Mail, Loader2, ArrowRight } from 'lucide-react'
 import useAuthStore from '../store/authStore'
+import useToastStore from '../store/toastStore'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -9,6 +10,7 @@ export default function LoginPage() {
   const [busy, setBusy] = useState(false)
   
   const { login, user, error } = useAuthStore()
+  const { showToast } = useToastStore()
   const navigate = useNavigate()
 
   const handleSubmit = async (e) => {
@@ -16,31 +18,33 @@ export default function LoginPage() {
     setBusy(true)
     const success = await login(email, password)
     if (success) {
-      // Use the latest user state from the store
+      showToast('Welcome back to Workbench', 'success')
       const loggedInUser = useAuthStore.getState().user
       if (loggedInUser?.role === 'ADMIN') {
         navigate('/admin')
       } else {
         navigate('/')
       }
+    } else {
+      showToast('Invalid credentials. Please try again.', 'error')
     }
     setBusy(false)
   }
 
   return (
-    <div className="min-h-screen bg-[#0d0f14] flex items-center justify-center p-6 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-indigo-500/10 via-transparent to-transparent">
+    <div className="min-h-screen bg-surface-900 flex items-center justify-center p-6 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-indigo-500/10 via-transparent to-transparent">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="flex flex-col items-center mb-10 fade-up">
            <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-2xl shadow-indigo-600/40 mb-6">
-              <FileText className="w-8 h-8 text-white" />
+              <FileText className="w-8 h-8 dark:text-white text-slate-900" />
            </div>
-           <h1 className="text-3xl font-bold text-white tracking-tight">IDP Workbench</h1>
+           <h1 className="text-3xl font-bold dark:text-white text-slate-900 tracking-tight">IDP Workbench</h1>
            <p className="text-slate-500 mt-2">Intelligent Document Processing</p>
         </div>
 
         {/* Card */}
-        <div className="glass-morphism rounded-3xl border border-white/5 p-8 shadow-2xl scale-in">
+        <div className="glass-morphism rounded-3xl border dark:border-white/5 border-black/5 p-8 shadow-2xl scale-in">
           <form className="space-y-6" onSubmit={handleSubmit}>
             {error && (
               <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-xs text-red-200 text-center animate-shake">
@@ -58,7 +62,7 @@ export default function LoginPage() {
                   type="email" 
                   value={email}
                   onChange={e => setEmail(e.target.value)}
-                  className="w-full bg-[#13161e] border border-white/10 rounded-2xl pl-11 pr-4 py-3.5 text-sm text-white focus:outline-none focus:border-indigo-500/50 transition-all"
+                  className="w-full bg-surface-800 border dark:border-white/10 border-black/10 rounded-2xl pl-11 pr-4 py-3.5 text-sm dark:text-white text-slate-900 focus:outline-none focus:border-indigo-500/50 transition-all"
                   placeholder="name@company.com"
                   required
                 />
@@ -77,7 +81,7 @@ export default function LoginPage() {
                   type="password" 
                   value={password}
                   onChange={e => setPassword(e.target.value)}
-                  className="w-full bg-[#13161e] border border-white/10 rounded-2xl pl-11 pr-4 py-3.5 text-sm text-white focus:outline-none focus:border-indigo-500/50 transition-all"
+                  className="w-full bg-surface-800 border dark:border-white/10 border-black/10 rounded-2xl pl-11 pr-4 py-3.5 text-sm dark:text-white text-slate-900 focus:outline-none focus:border-indigo-500/50 transition-all"
                   placeholder="••••••••"
                   required
                 />

@@ -136,17 +136,24 @@ export default function DashboardPage() {
   }
 
   const stats = {
-    inQueue: blobs.filter(b => b.status === 'PENDING').length,
+    inQueue: blobs.filter(b => b.status === 'PENDING' || b.status === 'PROCESSING').length,
     inProgress: blobs.filter(b => b.status === 'IN-PROGRESS').length,
     rejected: blobs.filter(b => b.status === 'FAILED').length,
     completed: blobs.filter(b => b.status === 'COMPLETED').length,
   }
 
+  const getGreeting = () => {
+    const hour = new Date().getHours()
+    if (hour < 12) return 'Good Morning'
+    if (hour < 17) return 'Good Afternoon'
+    return 'Good Evening'
+  }
+
 
   return (
-    <div className="min-h-screen bg-[#0d0f14] dark:text-slate-200 text-slate-800">
+    <div className="min-h-screen bg-main text-main">
       {/* Search Header */}
-      <header className="sticky top-0 z-10 glass border-b dark:border-white/5 border-black/5 px-4 md:px-8 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <header className="sticky top-0 z-10 glass border-b border-main px-4 md:px-8 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-500/20">
@@ -156,13 +163,13 @@ export default function DashboardPage() {
           </div>
 
           <div className="relative w-96">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
             <input
               type="text"
               placeholder="Search blobs by filename..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-surface-800 border dark:border-white/10 border-black/10 rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-indigo-500 transition-all"
+              className="w-full bg-surface border border-main rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-indigo-500 transition-all"
             />
           </div>
         </div>
@@ -179,12 +186,12 @@ export default function DashboardPage() {
 
           <div className="flex flex-col items-end">
             <span className="text-xs font-bold dark:text-white text-slate-900 leading-none">{user?.name || 'Operator'}</span>
-            <span className="text-[10px] text-slate-500 uppercase tracking-tighter">{user?.role}</span>
+            <span className="text-[10px] text-muted uppercase tracking-tighter">{user?.role}</span>
           </div>
 
           <button 
             onClick={toggleTheme}
-            className="p-2.5 rounded-xl dark:bg-white/5 bg-black/5 dark:text-slate-400 text-slate-600 dark:hover:bg-white/10 hover:bg-black/10 dark:hover:text-white hover:text-slate-900 transition-all border dark:border-white/5 border-black/5"
+            className="p-2.5 rounded-xl dark:bg-white/5 bg-black/5 text-muted dark:hover:bg-white/10 hover:bg-black/10 dark:hover:text-white hover:text-slate-900 transition-all border border-main"
             title="Toggle Theme"
           >
             {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
@@ -195,7 +202,7 @@ export default function DashboardPage() {
               await logout()
               navigate('/login')
             }}
-            className="p-2.5 rounded-xl dark:bg-white/5 bg-black/5 dark:text-slate-400 text-slate-600 hover:bg-red-500/10 hover:text-red-400 transition-all border dark:border-white/5 border-black/5"
+            className="p-2.5 rounded-xl dark:bg-white/5 bg-black/5 text-muted hover:bg-red-500/10 hover:text-red-400 transition-all border border-main"
             title="Sign Out"
           >
             <LogOut className="w-4 h-4" />
@@ -203,126 +210,122 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <main className="max-w-[1400px] mx-auto p-8 space-y-10">
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Status Card */}
-          <div className="bg-surface-800/50 border dark:border-white/5 border-black/5 rounded-2xl p-6">
-            <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4">Status</h4>
-            <div className="grid grid-cols-4 gap-2">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-indigo-400">{stats.inQueue}</div>
-                <div className="text-[10px] text-slate-500 mt-1 uppercase">In-Queue</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-400">{stats.inProgress}</div>
-                <div className="text-[10px] text-slate-500 mt-1 uppercase">In-Progress</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-red-400">{stats.rejected}</div>
-                <div className="text-[10px] text-slate-500 mt-1 uppercase">Rejected</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-emerald-400">{stats.completed}</div>
-                <div className="text-[10px] text-slate-500 mt-1 uppercase">Completed</div>
-              </div>
-            </div>
+      <main className="max-w-[1600px] mx-auto p-6 space-y-8 animate-in fade-in duration-700">
+        {/* Welcome Section */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight">{getGreeting()}, {user?.name?.split(' ')[0] || 'Operator'}</h2>
+            <p className="text-muted text-sm mt-1">Here is what is happening with your loan pipeline today.</p>
           </div>
+          <div className="flex items-center gap-3">
+             <div className="px-4 py-2 bg-surface border border-main rounded-xl flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-xs font-bold uppercase tracking-wider">{blobs.length} Active Blobs</span>
+             </div>
+          </div>
+        </div>
+
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+          <StatCard label="In Queue" value={stats.inQueue} color="text-indigo-400" sub="Waiting for AI" />
+          <StatCard label="In Progress" value={stats.inProgress} color="text-blue-400" sub="Human Review" />
+          <StatCard label="Rejected" value={stats.rejected} color="text-red-400" sub="Failed extraction" />
+          <StatCard label="Completed" value={stats.completed} color="text-emerald-400" sub="Ready for SFTP" />
 
           {/* Ageing Card */}
-          <div className="bg-surface-800/50 border dark:border-white/5 border-black/5 rounded-2xl p-6">
-            <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4">Ageing</h4>
-            <div className="flex gap-1 h-2 rounded-full overflow-hidden dark:bg-white/5 bg-black/5 mb-4">
-              <div className="w-1/3 bg-red-500/40" />
-              <div className="w-1/2 bg-yellow-500/40" />
-              <div className="w-1/6 bg-emerald-500/40" />
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              <div className="text-center">
-                <div className="text-lg font-bold dark:text-white text-slate-900">3</div>
-                <div className="text-[10px] text-slate-500 mt-1">0-5 Days</div>
+          <div className="card-surface border border-main rounded-2xl p-6 flex flex-col justify-between">
+            <div>
+              <h4 className="text-[10px] font-bold text-muted uppercase tracking-widest mb-4">Ageing</h4>
+              <div className="flex gap-1 h-2 rounded-full overflow-hidden dark:bg-white/5 bg-black/5 mb-4">
+                <div className="w-1/3 bg-red-500/40" />
+                <div className="w-1/2 bg-yellow-500/40" />
+                <div className="w-1/6 bg-emerald-500/40" />
               </div>
-              <div className="text-center">
-                <div className="text-lg font-bold dark:text-white text-slate-900">0</div>
-                <div className="text-[10px] text-slate-500 mt-1">6-10 Days</div>
-              </div>
-              <div className="text-center">
-                <div className="text-lg font-bold dark:text-white text-slate-900">1</div>
-                <div className="text-[10px] text-slate-500 mt-1">11-15 Days</div>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="text-center">
+                  <div className="text-lg font-bold dark:text-white text-slate-900">3</div>
+                  <div className="text-[10px] text-muted mt-1">0-5 Days</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-bold dark:text-white text-slate-900">0</div>
+                  <div className="text-[10px] text-muted mt-1">6-10 Days</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-bold dark:text-white text-slate-900">1</div>
+                  <div className="text-[10px] text-muted mt-1">11-15 Days</div>
+                </div>
               </div>
             </div>
           </div>
 
           {/* SLA Card */}
-          <div className="bg-surface-800/50 border dark:border-white/5 border-black/5 rounded-2xl p-6">
-            <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4">Nearing SLA</h4>
-            <div className="flex gap-1 h-2 rounded-full overflow-hidden dark:bg-white/5 bg-black/5 mb-4">
-              <div className="w-[10%] bg-red-500/40" />
-              <div className="w-[20%] bg-orange-500/40" />
-              <div className="w-[30%] bg-yellow-500/40" />
-              <div className="w-[40%] bg-emerald-500/40" />
-            </div>
-            <div className="grid grid-cols-4 gap-2">
-              <div className="text-center">
-                <div className="text-lg font-bold dark:text-white text-slate-900">0</div>
-                <div className="text-[10px] text-slate-500 mt-1">5m</div>
+          <div className="card-surface border border-main rounded-2xl p-6 flex flex-col justify-between">
+            <div>
+              <h4 className="text-[10px] font-bold text-muted uppercase tracking-widest mb-4">Nearing SLA</h4>
+              <div className="flex gap-1 h-2 rounded-full overflow-hidden dark:bg-white/5 bg-black/5 mb-4">
+                <div className="w-[10%] bg-red-500/40" />
+                <div className="w-[20%] bg-orange-500/40" />
+                <div className="w-[30%] bg-yellow-500/40" />
+                <div className="w-[40%] bg-emerald-500/40" />
               </div>
-              <div className="text-center">
-                <div className="text-lg font-bold dark:text-white text-slate-900">0</div>
-                <div className="text-[10px] text-slate-500 mt-1">10m</div>
-              </div>
-              <div className="text-center">
-                <div className="text-lg font-bold dark:text-white text-slate-900">0</div>
-                <div className="text-[10px] text-slate-500 mt-1">30m</div>
-              </div>
-              <div className="text-center">
-                <div className="text-lg font-bold dark:text-white text-slate-900">0</div>
-                <div className="text-[10px] text-slate-500 mt-1">1hr</div>
+              <div className="grid grid-cols-4 gap-2">
+                <div className="text-center">
+                  <div className="text-lg font-bold dark:text-white text-slate-900">0</div>
+                  <div className="text-[10px] text-muted mt-1">5m</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-bold dark:text-white text-slate-900">0</div>
+                  <div className="text-[10px] text-muted mt-1">10m</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-bold dark:text-white text-slate-900">0</div>
+                  <div className="text-[10px] text-muted mt-1">30m</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-bold dark:text-white text-slate-900">0</div>
+                  <div className="text-[10px] text-muted mt-1">1hr</div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Bulk Uploader */}
-        <section>
+          {/* Smart Ingestion Card */}
           <div
             onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
             onDragLeave={() => setDragging(false)}
             onDrop={onDrop}
             onClick={() => inputRef.current.click()}
             className={`
-              relative group overflow-hidden rounded-3xl border-2 border-dashed transition-all duration-300 cursor-pointer
-              flex flex-col items-center justify-center p-8
-              ${dragging ? 'border-indigo-500 bg-indigo-500/5' : 'dark:border-white/10 border-black/10 bg-surface-900/50 hover:border-indigo-500/30 hover:bg-surface-800/50'}
+              relative group overflow-hidden rounded-2xl border-2 border-dashed transition-all duration-300 cursor-pointer
+              flex flex-col items-center justify-center p-6
+              ${dragging ? 'border-indigo-500 bg-indigo-500/5' : 'border-main card-surface hover:border-indigo-500/30 hover:bg-surface'}
             `}
           >
             <input ref={inputRef} type="file" multiple accept=".pdf" className="hidden" onChange={(e) => handleFiles(e.target.files)} />
 
             <div className="relative z-10 flex flex-col items-center text-center">
-              <div className="w-12 h-12 rounded-xl bg-indigo-600/10 border border-indigo-500/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                <CloudUpload className="w-6 h-6 text-indigo-400" />
+              <div className="w-10 h-10 rounded-xl bg-indigo-600/10 border border-indigo-500/20 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                <CloudUpload className="w-5 h-5 text-indigo-400" />
               </div>
-              <h2 className="text-lg font-bold dark:text-white text-slate-900 mb-1">Smart Ingestion</h2>
-              <p className="text-xs dark:text-slate-400 text-slate-600 max-w-md">
-                Drag and drop your bulk mortgage packages here. Our AI will automatically
-                <span className="text-indigo-400 mx-1">explode</span>,
-                <span className="text-indigo-400 mx-1">classify</span>, and
-                <span className="text-indigo-400 mx-1">prepare</span> them.
+              <h2 className="text-sm font-bold dark:text-white text-slate-900 mb-1">Smart Ingestion</h2>
+              <p className="text-[10px] text-muted leading-tight">
+                Drag & drop mortgage packages. AI will <span className="text-indigo-400">explode</span> & <span className="text-indigo-400">classify</span>.
               </p>
             </div>
 
             {/* Background Decoration */}
             <div className="absolute inset-0 bg-gradient-to-tr from-indigo-500/5 to-transparent pointer-events-none" />
           </div>
-        </section>
+        </div>
+
 
 
         {/* Active Uploads Monitoring */}
         {uploads.length > 0 && (
           <section className="fade-up space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold uppercase tracking-widest text-slate-500">Live Monitors</h3>
-              <button onClick={() => setUploads([])} className="text-xs text-slate-600 hover:dark:text-slate-400 text-slate-600">Clear Finished</button>
+              <h3 className="text-sm font-semibold uppercase tracking-widest text-muted">Live Monitors</h3>
+              <button onClick={() => setUploads([])} className="text-xs text-slate-600 hover:text-muted">Clear Finished</button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                {uploads.map(u => (
@@ -340,21 +343,21 @@ export default function DashboardPage() {
         {/* SFTP Inbound Files Monitoring */}
         {inboundFiles.length > 0 && (
           <section className="fade-up space-y-4">
-            <div className="flex items-center justify-between border-b dark:border-white/5 border-black/5 pb-2">
-              <h3 className="text-sm font-semibold uppercase tracking-widest text-slate-500">SFTP Inbound Queue</h3>
-              <div className="flex items-center gap-2 text-xs text-slate-500 font-mono">
+            <div className="flex items-center justify-between border-b border-main pb-2">
+              <h3 className="text-sm font-semibold uppercase tracking-widest text-muted">SFTP Inbound Queue</h3>
+              <div className="flex items-center gap-2 text-xs text-muted font-mono">
                 Queued: {inboundFiles.length}
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                {inboundFiles.map((file, idx) => (
-                <div key={idx} className="p-4 rounded-2xl border bg-surface-800 dark:border-white/10 border-black/10 transition-all duration-300 flex items-start gap-3">
+                <div key={idx} className="p-4 rounded-2xl border bg-surface border-main transition-all duration-300 flex items-start gap-3">
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-blue-500/20 text-blue-400">
                     <CloudUpload className="w-4 h-4" />
                   </div>
                   <div className="min-w-0">
                     <p className="text-xs font-semibold dark:text-white text-slate-900 truncate">{file.name}</p>
-                    <p className="text-[10px] text-slate-500">Waiting for SFTP Poller...</p>
+                    <p className="text-[10px] text-muted">Waiting for SFTP Poller...</p>
                   </div>
                 </div>
               ))}
@@ -364,10 +367,10 @@ export default function DashboardPage() {
 
         {/* Main List */}
         <section className="space-y-6">
-          <div className="flex flex-col gap-4 border-b dark:border-white/5 border-black/5 pb-6">
+          <div className="flex flex-col gap-4 border-b border-main pb-6">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold uppercase tracking-widest text-slate-500">Recent Blobs</h3>
-              <div className="flex items-center gap-2 text-xs text-slate-500 font-mono">
+              <h3 className="text-sm font-semibold uppercase tracking-widest text-muted">Recent Blobs</h3>
+              <div className="flex items-center gap-2 text-xs text-muted font-mono">
                 Total: {blobs.length} | Processed: {blobs.filter(b => b.status === 'COMPLETED').length}
               </div>
             </div>
@@ -375,36 +378,36 @@ export default function DashboardPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Batch No Filter */}
               <div className="relative">
-                <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
                 <input 
                   type="text" 
                   placeholder="Filter by Batch No..." 
                   value={filterBatchNo}
                   onChange={e => setFilterBatchNo(e.target.value)}
-                  className="w-full bg-surface-800 border dark:border-white/10 border-black/10 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 transition-all"
+                  className="w-full bg-surface border border-main rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 transition-all"
                 />
               </div>
 
               {/* User Filter */}
               <div className="relative">
-                <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
                 <input 
                   type="text" 
                   placeholder="Filter by User..." 
                   value={filterUser}
                   onChange={e => setFilterUser(e.target.value)}
-                  className="w-full bg-surface-800 border dark:border-white/10 border-black/10 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 transition-all"
+                  className="w-full bg-surface border border-main rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 transition-all"
                 />
               </div>
 
               {/* Date Filter */}
               <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
                 <input 
                   type="date" 
                   value={filterDate}
                   onChange={e => setFilterDate(e.target.value)}
-                  className="w-full bg-surface-800 border dark:border-white/10 border-black/10 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 transition-all dark:[color-scheme:dark]"
+                  className="w-full bg-surface border border-main rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 transition-all dark:[color-scheme:dark]"
                 />
               </div>
 
@@ -413,7 +416,7 @@ export default function DashboardPage() {
                 <select 
                   value={filterStatus}
                   onChange={e => setFilterStatus(e.target.value)}
-                  className="w-full bg-surface-800 border dark:border-white/10 border-black/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 transition-all appearance-none"
+                  className="w-full bg-surface border border-main rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 transition-all appearance-none"
                 >
                   <option value="">All Statuses</option>
                   <option value="PENDING">PENDING</option>
@@ -422,16 +425,16 @@ export default function DashboardPage() {
                   <option value="COMPLETED">COMPLETED</option>
                   <option value="FAILED">FAILED</option>
                 </select>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
               </div>
             </div>
           </div>
 
-          <div className="overflow-x-auto rounded-2xl border dark:border-white/5 border-black/5 bg-surface-800/30">
+          <div className="overflow-x-auto rounded-2xl border border-main bg-surface/30">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-surface-800/50 border-b dark:border-white/5 border-black/5 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                  <th className="px-6 py-4 w-10"><input type="checkbox" className="rounded bg-surface-700 dark:border-white/10 border-black/10" /></th>
+                <tr className="card-surface border-b border-main text-[10px] font-bold text-muted uppercase tracking-widest">
+                  <th className="px-6 py-4 w-10"><input type="checkbox" className="rounded bg-surface-700 border-main" /></th>
                   <th className="px-4 py-4">Batch Completed Date</th>
                   <th className="px-4 py-4">User</th>
                   <th className="px-4 py-4">Batch No.</th>
@@ -448,14 +451,14 @@ export default function DashboardPage() {
                   <tr>
                     <td colSpan="13" className="py-20 text-center">
                       <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-indigo-500" />
-                      <p className="text-sm text-slate-500">Fetching repository...</p>
+                      <p className="text-sm text-muted">Fetching repository...</p>
                     </td>
                   </tr>
                 ) : filteredBlobs.length === 0 ? (
                   <tr>
                     <td colSpan="13" className="py-20 text-center">
                       <FileText className="w-12 h-12 text-slate-700 mx-auto mb-4" />
-                      <p className="text-slate-500">No blobs found matching your search</p>
+                      <p className="text-muted">No blobs found matching your search</p>
                     </td>
                   </tr>
                 ) : (
@@ -481,9 +484,9 @@ export default function DashboardPage() {
                         onClick={() => navigate(`/workspace/${blob.id}`)}
                       >
                         <td className="px-6 py-4" onClick={e => e.stopPropagation()}>
-                          <input type="checkbox" className="rounded bg-surface-700 dark:border-white/10 border-black/10" />
+                          <input type="checkbox" className="rounded bg-surface-700 border-main" />
                         </td>
-                        <td className="px-4 py-4 text-xs dark:text-slate-400 text-slate-600">
+                        <td className="px-4 py-4 text-xs text-muted">
                           {blob.completedAt ? new Date(blob.completedAt).toLocaleDateString() : '-'}
                         </td>
                         <td className="px-4 py-4">
@@ -504,15 +507,15 @@ export default function DashboardPage() {
                           )}
                         </td>
                         <td className="px-4 py-4 text-xs text-indigo-400 font-medium">{blob.batchNo || '-'}</td>
-                        <td className="px-4 py-4 text-xs dark:text-slate-400 text-slate-600">
+                        <td className="px-4 py-4 text-xs text-muted">
                           {new Date(blob.createdAt).toLocaleDateString()}<br/>
-                          <span className="text-[10px] text-slate-500">{new Date(blob.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                          <span className="text-[10px] text-muted">{new Date(blob.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                         </td>
-                        <td className="px-4 py-4 text-xs dark:text-slate-400 text-slate-600">
+                        <td className="px-4 py-4 text-xs text-muted">
                           {new Date(blob.createdAt).toLocaleDateString()}
                         </td>
                         <td className="px-4 py-4 text-xs dark:text-slate-300 text-slate-700 text-center font-bold">{blob.pageCount}</td>
-                        <td className="px-4 py-4 text-xs dark:text-slate-400 text-slate-600">
+                        <td className="px-4 py-4 text-xs text-muted">
                           {calculateTimeTaken(blob)}
                         </td>
                         <td className="px-4 py-4">
@@ -521,7 +524,7 @@ export default function DashboardPage() {
                         <td className="px-6 py-4 text-right" onClick={e => e.stopPropagation()}>
                           <button 
                             onClick={(e) => handleDelete(e, blob.id)}
-                            className="p-2 rounded-lg text-slate-500 hover:bg-red-500/10 hover:text-red-400 transition-all"
+                            className="p-2 rounded-lg text-muted hover:bg-red-500/10 hover:text-red-400 transition-all"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -538,25 +541,25 @@ export default function DashboardPage() {
           {/* Assignment Modal */}
           {assigningBlob && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-              <div className="bg-surface-800 border dark:border-white/10 border-black/10 rounded-2xl w-full max-w-md shadow-2xl fade-up overflow-hidden">
-                <div className="px-6 py-4 border-b dark:border-white/5 border-black/5 flex items-center justify-between">
+              <div className="bg-surface border border-main rounded-2xl w-full max-w-md shadow-2xl fade-up overflow-hidden">
+                <div className="px-6 py-4 border-b border-main flex items-center justify-between">
                   <h3 className="text-sm font-bold dark:text-white text-slate-900 uppercase tracking-widest">Assign Document</h3>
-                  <button onClick={() => setAssigningBlob(null)} className="text-slate-500 hover:dark:text-white text-slate-900"><X className="w-4 h-4" /></button>
+                  <button onClick={() => setAssigningBlob(null)} className="text-muted hover:dark:text-white text-slate-900"><X className="w-4 h-4" /></button>
                 </div>
                 <div className="p-6 space-y-4">
                   <div className="p-4 rounded-xl bg-indigo-500/5 border border-indigo-500/10">
-                    <p className="text-xs dark:text-slate-400 text-slate-600 mb-1">Document Name</p>
+                    <p className="text-xs text-muted mb-1">Document Name</p>
                     <p className="text-sm font-bold dark:text-white text-slate-900 truncate">{assigningBlob.filename}</p>
                   </div>
                   
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Batch Number</label>
+                    <label className="block text-[10px] font-bold text-muted uppercase tracking-widest mb-2">Batch Number</label>
                     <input 
                       type="text"
                       placeholder="Enter batch number (e.g. 2025020401)"
                       value={batchNo}
                       onChange={(e) => setBatchNo(e.target.value)}
-                      className="w-full bg-surface-900 border dark:border-white/10 border-black/10 rounded-xl px-4 py-3 text-sm dark:text-white text-slate-900 focus:outline-none focus:border-indigo-500 transition-all"
+                      className="w-full bg-main border border-main rounded-xl px-4 py-3 text-sm dark:text-white text-slate-900 focus:outline-none focus:border-indigo-500 transition-all"
                       autoFocus
                     />
                   </div>
@@ -564,7 +567,7 @@ export default function DashboardPage() {
                   <div className="flex items-center gap-3 pt-2">
                     <button 
                       onClick={() => setAssigningBlob(null)}
-                      className="flex-1 px-4 py-2.5 rounded-xl dark:bg-white/5 bg-black/5 dark:text-slate-400 text-slate-600 hover:dark:bg-white/10 bg-black/10 text-xs font-bold transition-all"
+                      className="flex-1 px-4 py-2.5 rounded-xl dark:bg-white/5 bg-black/5 text-muted hover:dark:bg-white/10 bg-black/10 text-xs font-bold transition-all"
                     >
                       Cancel
                     </button>
@@ -594,7 +597,7 @@ function UploadCard({ upload, onOpen, onCancel }) {
   return (
     <div className={`
       p-4 rounded-2xl border transition-all duration-300
-      ${isDone ? 'bg-green-500/5 border-green-500/20' : isError ? 'bg-red-500/5 border-red-500/20' : 'bg-surface-800 dark:border-white/10 border-black/10'}
+      ${isDone ? 'bg-green-500/5 border-green-500/20' : isError ? 'bg-red-500/5 border-red-500/20' : 'bg-surface border-main'}
     `}>
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-3">
@@ -603,7 +606,7 @@ function UploadCard({ upload, onOpen, onCancel }) {
           </div>
           <div className="min-w-0">
             <p className="text-xs font-semibold dark:text-white text-slate-900 truncate w-40">{upload.name}</p>
-            <p className="text-[10px] text-slate-500">{isDone ? 'Sent to SFTP Inbound' : 'Uploading...'}</p>
+            <p className="text-[10px] text-muted">{isDone ? 'Sent to SFTP Inbound' : 'Uploading...'}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -614,7 +617,7 @@ function UploadCard({ upload, onOpen, onCancel }) {
           )}
           <button 
             onClick={onCancel}
-            className="p-1.5 rounded-lg hover:dark:bg-white/5 bg-black/5 text-slate-500"
+            className="p-1.5 rounded-lg hover:dark:bg-white/5 bg-black/5 text-muted"
           >
             <X className="w-3.5 h-3.5" />
           </button>
@@ -623,7 +626,7 @@ function UploadCard({ upload, onOpen, onCancel }) {
 
       {!isDone && !isError && (
         <div className="space-y-2">
-          <div className="flex items-center justify-between text-[10px] dark:text-slate-400 text-slate-600">
+          <div className="flex items-center justify-between text-[10px] text-muted">
             <span>Progress</span>
             <span>{upload.progress}%</span>
           </div>
@@ -638,13 +641,25 @@ function UploadCard({ upload, onOpen, onCancel }) {
   )
 }
 
+function StatCard({ label, value, color, sub }) {
+  return (
+    <div className="card-surface p-6 flex flex-col justify-between group hover:border-indigo-500/30 transition-all duration-300">
+      <div>
+        <h4 className="text-[10px] font-bold text-muted uppercase tracking-widest mb-2">{label}</h4>
+        <div className={`text-3xl font-bold ${color}`}>{value}</div>
+        <div className="text-[10px] text-muted mt-1 uppercase opacity-0 group-hover:opacity-100 transition-opacity">{sub}</div>
+      </div>
+    </div>
+  )
+}
+
 function StatusBadge({ status }) {
   const statusStyles = {
-    PENDING: 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20',
-    'IN-PROGRESS': 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-    PROCESSING: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20',
-    COMPLETED: 'bg-green-500/10 text-green-400 border-green-500/20',
-    FAILED: 'bg-red-500/10 text-red-400 border-red-500/20',
+    PENDING: 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-500 border-yellow-500/20',
+    'IN-PROGRESS': 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
+    PROCESSING: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20',
+    COMPLETED: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
+    FAILED: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20',
   }
 
   const steps = {

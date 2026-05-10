@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { fetchConfiguredDocTypes } from '../api/client'
 import useWorkspaceStore from '../store/workspaceStore'
-import { CheckCircle2, ChevronDown, FileText, Layers, Merge, AlertTriangle, List, Check, Square, FileJson, X } from 'lucide-react'
+import { CheckCircle2, ChevronDown, FileText, Layers, Merge, AlertTriangle, List, Check, Square, FileJson, X, Download } from 'lucide-react'
+import useToastStore from '../store/toastStore'
 
 
 export default function PropertiesPanel() {
@@ -13,11 +14,11 @@ export default function PropertiesPanel() {
   const page = pages.find((p) => p.id === selectedPageId)
   const doc = documents.find((d) => d.id === selectedDocumentId)
 
+  const { showToast } = useToastStore()
   const [docType, setDocType] = useState('')
   const [docName, setDocName] = useState('')
   const [mergeTarget, setMergeTarget] = useState('')
   const [busy, setBusy] = useState(false)
-  const [toast, setToast] = useState(null)
   const [checkedFields, setCheckedFields] = useState(new Set())
   const [isAddingField, setIsAddingField] = useState(false)
   const [newFieldName, setNewFieldName] = useState('')
@@ -115,10 +116,7 @@ export default function PropertiesPanel() {
     if (doc) { setDocType(doc.documentType || ''); setDocName(doc.name || '') }
   }, [doc?.id])
 
-  const showToast = (msg, type = 'success') => {
-    setToast({ msg, type })
-    setTimeout(() => setToast(null), 3000)
-  }
+
 
   const handleVerify = async () => {
     if (!doc) return
@@ -151,6 +149,43 @@ export default function PropertiesPanel() {
     finally { setBusy(false) }
   }
 
+  const handleDownloadCSV = () => {
+    if (!doc || !blob) return
+
+    // Calculate metadata
+    const docPagesSorted = [...doc.pages].sort((a, b) => a.order - b.order)
+    const firstPage = pages.find(p => p.id === docPagesSorted[0]?.pageId)
+    const lastPage = pages.find(p => p.id === docPagesSorted[docPagesSorted.length - 1]?.pageId)
+
+    const metadata = [
+      ['Document ID', doc.id],
+      ['Document Type', doc.documentType],
+      ['Total Pages (Package)', blob.pageCount],
+      ['Page From', (firstPage?.originalIndex ?? 0) + 1],
+      ['Page To', (lastPage?.originalIndex ?? 0) + 1],
+      ['Extracted Value Page', (firstPage?.originalIndex ?? 0) + 1],
+    ]
+
+    const fieldEntries = Object.entries(fields).map(([k, v]) => [k, v])
+    
+    const rows = [
+      ['Field', 'Value'],
+      ...metadata,
+      ...fieldEntries
+    ]
+
+    const csvContent = rows.map(r => r.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n')
+    
+    const blobUrl = URL.createObjectURL(new Blob([csvContent], { type: 'text/csv;charset=utf-8;' }))
+    const link = document.createElement('a')
+    link.href = blobUrl
+    link.setAttribute('download', `Extracted_Data_Doc_${doc.id}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    showToast('Document data exported successfully', 'success')
+  }
+
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <div className="panel-header">
@@ -164,11 +199,11 @@ export default function PropertiesPanel() {
         
         {/* ── LOW CONFIDENCE BANNER ── */}
         {page && (page.confidenceScore < 0.85 || (page.anomalyFlags && JSON.parse(page.anomalyFlags).length > 0)) && (
-          <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 flex items-start gap-3 animate-pulse">
+          <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 flex items-start gap-3">
             <AlertTriangle className="w-5 h-5 text-red-500 shrink-0" />
             <div>
-              <p className="text-[10px] font-bold text-red-500 uppercase tracking-widest">Attention Required</p>
-              <p className="text-xs text-red-200/70 mt-0.5">
+              <p className="text-[10px] font-bold text-red-600 dark:text-red-600 dark:text-red-400 uppercase tracking-widest">Attention Required</p>
+              <p className="text-xs text-red-700 dark:text-red-200/70 mt-0.5">
                 {page.confidenceScore < 0.85 ? 'Low AI confidence.' : ''} 
                 {page.anomalyFlags && JSON.parse(page.anomalyFlags).join(', ')} detected.
               </p>
@@ -183,7 +218,7 @@ export default function PropertiesPanel() {
             <InfoRow label="Confidence" value={(page.confidenceScore !== null && page.confidenceScore !== undefined) ? `${(page.confidenceScore * 100).toFixed(1)}%` : '—'} />
             <InfoRow label="Index" value={`Page ${(pages.findIndex(p => p.id === page.id)) + 1}`} />
             {page.isFlagged && (
-              <div className="flex items-center gap-1.5 text-xs text-red-300 mt-1">
+              <div className="flex items-center gap-1.5 text-xs text-red-600 dark:text-red-600 dark:text-red-400 mt-1">
                 <AlertTriangle className="w-3.5 h-3.5" /> Flagged for review
               </div>
             )}
@@ -192,17 +227,26 @@ export default function PropertiesPanel() {
 
         {/* ── Verification Checklist (Document-wide) ── */}
         {doc && (
-          <Section title="Verification Checklist" icon={<List className="w-3.5 h-3.5 text-emerald-400" />}>
-             <div className="flex items-center justify-between mb-3 border-b dark:border-white/5 border-black/5 pb-2">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Extracted Fields</span>
-                <button 
-                  onClick={() => setShowRawJson(true)}
-                  className="flex items-center gap-1.5 text-[10px] font-bold text-indigo-400 hover:text-indigo-300 transition-colors group"
-                >
-                  <FileJson className="w-3 h-3 group-hover:scale-110 transition-transform" />
-                  EXTRACTED VALUES
-                </button>
-             </div>
+          <Section title="Verification Checklist" icon={<List className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />}>
+              <div className="flex items-center justify-between mb-3 border-b border-main pb-2">
+                 <span className="text-[10px] font-bold text-muted uppercase tracking-widest">Extracted Fields</span>
+                 <div className="flex items-center gap-3">
+                    <button 
+                      onClick={handleDownloadCSV}
+                      className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-300 transition-colors group"
+                    >
+                      <Download className="w-3 h-3 group-hover:scale-110 transition-transform" />
+                      DOWNLOAD CSV
+                    </button>
+                    <button 
+                      onClick={() => setShowRawJson(true)}
+                      className="flex items-center gap-1.5 text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-300 transition-colors group"
+                    >
+                      <FileJson className="w-3 h-3 group-hover:scale-110 transition-transform" />
+                      EXTRACTED VALUES
+                    </button>
+                 </div>
+              </div>
 
           </Section>
         )}
@@ -216,12 +260,12 @@ export default function PropertiesPanel() {
                 className={`
                   w-full text-left px-3 py-2 rounded-lg text-xs transition-all duration-150 border
                   ${d.id === selectedDocumentId
-                    ? 'bg-indigo-600/20 border-indigo-500/40 text-indigo-200'
-                    : 'bg-surface-700 dark:border-white/5 border-black/5 dark:text-slate-300 text-slate-700 hover:dark:border-white/20 border-black/20'}
+                    ? 'bg-indigo-600/10 dark:bg-indigo-600/20 border-indigo-500/40 text-indigo-600 dark:text-indigo-600 dark:text-indigo-200'
+                    : 'bg-surface-700 border-main text-muted hover:dark:border-white/20 border-black/20'}
                 `}
               >
-                <p className="font-medium truncate">{d.name}</p>
-                <p className="text-slate-500 mt-0.5">{d.documentType} · {d.pages?.length ?? 0}p</p>
+                <p className="font-medium truncate text-main">{d.name}</p>
+                <p className="text-muted mt-0.5">{d.documentType} · {d.pages?.length ?? 0}p</p>
               </button>
             ))}
           </div>
@@ -232,7 +276,7 @@ export default function PropertiesPanel() {
         {/* ── Document Editor ── */}
         {doc && (
           <Section title="Edit Document" icon={<FileText className="w-3.5 h-3.5" />}>
-            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Classification</label>
+            <label className="block text-[10px] font-bold text-muted uppercase tracking-widest mb-2">Classification</label>
             <div className="relative group">
               <div className="absolute -inset-0.5 bg-indigo-500/20 rounded-xl blur opacity-0 group-focus-within:opacity-100 transition-opacity" />
               <div className="relative">
@@ -241,33 +285,33 @@ export default function PropertiesPanel() {
                   value={docType}
                   onChange={(e) => setDocType(e.target.value)}
                   className="
-                    w-full bg-[#13161e] border dark:border-white/10 border-black/10 rounded-xl px-4 py-3 pr-10
-                    text-sm dark:text-white text-slate-900 appearance-none focus:outline-none focus:border-indigo-500/50
+                    w-full bg-main border border-main rounded-xl px-4 py-3 pr-10
+                    text-sm text-main appearance-none focus:outline-none focus:border-indigo-500/50
                     cursor-pointer transition-all
                   "
                 >
-                  <optgroup label="AI BEST GUESS" className="text-indigo-400">
+                  <optgroup label="AI BEST GUESS" className="text-indigo-600 dark:text-indigo-400">
                     <option value={doc.documentType} className="bg-indigo-900/40">{doc.documentType} (Confident)</option>
                   </optgroup>
-                  <optgroup label="COMMON MORTGAGE TYPES" className="text-slate-500">
+                  <optgroup label="COMMON MORTGAGE TYPES" className="text-muted">
                     {availableTypes.filter(t => t.code !== doc.documentType).map((t) => <option key={t.code} value={t.code}>{t.label}</option>)}
                   </optgroup>
                 </select>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
               </div>
             </div>
 
             <div className="mt-6 space-y-4">
                <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Internal Name</label>
+                  <label className="block text-[10px] font-bold text-muted uppercase tracking-widest mb-2">Internal Name</label>
                   <input
                     id="doc-name-input"
                     value={docName}
                     onChange={(e) => setDocName(e.target.value)}
                     placeholder="Auto-generated name..."
                     className="
-                      w-full bg-[#13161e] border dark:border-white/10 border-black/10 rounded-xl px-4 py-3
-                      text-sm dark:text-white text-slate-900 placeholder-slate-700
+                      w-full bg-main border border-main rounded-xl px-4 py-3
+                      text-sm text-main placeholder-slate-700
                       focus:outline-none focus:border-indigo-500/50 transition-all
                     "
                   />
@@ -291,15 +335,15 @@ export default function PropertiesPanel() {
         {/* ── Merge ── */}
         {doc && documents.length > 1 && (
           <Section title="Merge Into" icon={<Merge className="w-3.5 h-3.5" />}>
-            <p className="text-xs text-slate-500 mb-2">Merge current document into another:</p>
+            <p className="text-xs text-muted mb-2">Merge current document into another:</p>
             <div className="relative">
               <select
                 id="merge-target-select"
                 value={mergeTarget}
                 onChange={(e) => setMergeTarget(e.target.value)}
                 className="
-                  w-full bg-surface-700 border dark:border-white/10 border-black/10 rounded-lg px-3 py-2 pr-8
-                  text-sm dark:text-white text-slate-900 appearance-none focus:outline-none focus:border-indigo-500
+                  w-full bg-surface-700 border border-main rounded-lg px-3 py-2 pr-8
+                  text-sm text-main appearance-none focus:outline-none focus:border-indigo-500
                 "
               >
                 <option value="">Select target…</option>
@@ -307,7 +351,7 @@ export default function PropertiesPanel() {
                   <option key={d.id} value={d.id}>{d.name}</option>
                 ))}
               </select>
-              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 dark:text-slate-400 text-slate-600 pointer-events-none" />
+              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
             </div>
             <button
               id="merge-doc-btn"
@@ -321,41 +365,27 @@ export default function PropertiesPanel() {
         )}
       </div>
 
-      {/* Toast notification */}
-      {toast && (
-        <div className={`
-          absolute bottom-4 left-4 right-4 px-4 py-3 rounded-xl text-xs font-medium
-          flex items-center gap-2 shadow-xl border fade-up
-          ${toast.type === 'error'
-            ? 'bg-red-600/20 border-red-500/30 text-red-200'
-            : 'bg-green-600/20 border-green-500/30 text-green-200'}
-        `}>
-          <CheckCircle2 className="w-4 h-4 shrink-0" />
-          {toast.msg}
-        </div>
-      )}
-
       {/* Extracted Values Modal */}
       {showRawJson && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md">
-          <div className="bg-[#0d0f14] border dark:border-white/10 border-black/10 rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl animate-in zoom-in duration-200">
-            <div className="flex items-center justify-between px-6 py-4 border-b dark:border-white/5 border-black/5 shrink-0">
+          <div className="bg-surface border border-main rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl animate-in zoom-in duration-200">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-main shrink-0">
               <div className="flex items-center gap-2">
-                <FileJson className="w-4 h-4 text-indigo-400" />
-                <h3 className="text-sm font-bold dark:text-white text-slate-900 uppercase tracking-widest">Extracted Values</h3>
+                <FileJson className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                <h3 className="text-sm font-bold text-main uppercase tracking-widest">Extracted Values</h3>
               </div>
-              <button onClick={() => setShowRawJson(false)} className="p-2 hover:dark:bg-white/5 bg-black/5 rounded-full text-slate-500 hover:dark:text-white text-slate-900 transition-all">
+              <button onClick={() => setShowRawJson(false)} className="p-2 hover:bg-main rounded-full text-muted hover:text-main transition-all">
                 <X className="w-4 h-4" />
               </button>
             </div>
             
-            <div className="flex-1 overflow-y-auto p-6 scrollbar-thin bg-surface-900/50">
+            <div className="flex-1 overflow-y-auto p-6 scrollbar-thin bg-main/50">
                <div className="space-y-4">
                  {/* Search Bar */}
                  <div className="relative">
                    <input 
                      placeholder="Search extracted data..." 
-                     className="w-full bg-[#13161e] border dark:border-white/5 border-black/5 rounded-lg px-4 py-3 text-sm dark:text-white text-slate-900 placeholder-slate-600 focus:border-indigo-500/50 outline-none transition-all"
+                     className="w-full bg-main border border-main rounded-lg px-4 py-3 text-sm text-main placeholder-slate-600 focus:border-indigo-500/50 outline-none transition-all"
                      value={searchQuery}
                      onChange={e => setSearchQuery(e.target.value)}
                    />
@@ -370,21 +400,21 @@ export default function PropertiesPanel() {
                          flex items-start gap-3 p-4 rounded-xl transition-all border group
                          ${checkedFields.has(k) 
                            ? 'bg-emerald-500/10 border-emerald-500/30' 
-                           : 'dark:bg-white/5 bg-black/5 dark:border-white/5 border-black/5 hover:border-indigo-500/30'}
+                           : 'bg-main border-main hover:border-indigo-500/30'}
                        `}
                      >
                         <button 
                           onClick={(e) => { e.stopPropagation(); toggleCheck(k); }}
                           className={`
                             mt-1 w-6 h-6 rounded-md border flex items-center justify-center transition-all shrink-0
-                            ${checkedFields.has(k) ? 'bg-emerald-500 border-emerald-500 dark:text-white text-slate-900' : 'dark:border-white/20 border-black/20 text-transparent hover:border-white/40'}
+                            ${checkedFields.has(k) ? 'bg-emerald-500 border-emerald-500 text-main' : 'dark:border-white/20 border-black/20 text-transparent hover:border-white/40'}
                           `}
                         >
                           <Check className="w-4 h-4" />
                         </button>
                         <div className="flex-1 min-w-0">
                           <div className="flex justify-between items-start">
-                            <p className={`text-xs font-bold uppercase tracking-wide truncate mb-1 ${checkedFields.has(k) ? 'text-emerald-400' : 'dark:text-slate-400 text-slate-600'}`}>
+                            <p className={`text-xs font-bold uppercase tracking-wide truncate mb-1 ${checkedFields.has(k) ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted'}`}>
                               {k.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
                             </p>
                             {checkedFields.has(k) && <Check className="w-4 h-4 text-emerald-500 animate-in zoom-in" />}
@@ -396,8 +426,8 @@ export default function PropertiesPanel() {
                                setFields(prev => ({ ...prev, [k]: newVal }));
                             }}
                             className={`
-                              w-full bg-[#1a1d24]/80 border dark:border-white/5 border-black/5 rounded-lg px-3 py-2 text-sm font-mono mt-1 outline-none focus:border-indigo-500/50 transition-all
-                              ${checkedFields.has(k) ? 'text-emerald-100' : 'text-indigo-200'}
+                              w-full bg-surface-700/80 border border-main rounded-lg px-3 py-2 text-sm font-mono mt-1 outline-none focus:border-indigo-500/50 transition-all
+                              ${checkedFields.has(k) ? 'text-emerald-100' : 'text-indigo-600 dark:text-indigo-200'}
                             `}
                           />
                         </div>
@@ -411,31 +441,31 @@ export default function PropertiesPanel() {
 
                  {/* Add Field Input */}
                  {isAddingField ? (
-                    <div className="dark:bg-white/5 bg-black/5 border border-indigo-500/30 rounded-xl p-4 space-y-3 animate-in fade-in shadow-2xl mt-4">
+                    <div className="bg-main border border-indigo-500/30 rounded-xl p-4 space-y-3 animate-in fade-in shadow-2xl mt-4">
                        <input 
                          placeholder="Label (e.g. Loan Number)" 
-                         className="w-full bg-[#13161e] border dark:border-white/10 border-black/10 rounded-lg px-3 py-2.5 text-sm dark:text-white text-slate-900 placeholder-slate-700 outline-none focus:border-indigo-500/50"
+                         className="w-full bg-[#13161e] border border-main rounded-lg px-3 py-2.5 text-sm text-main placeholder-slate-700 outline-none focus:border-indigo-500/50"
                          value={newFieldName}
                          onChange={e => setNewFieldName(e.target.value)}
                          autoFocus
                        />
                        <input 
                          placeholder="Value" 
-                         className="w-full bg-[#13161e] border dark:border-white/10 border-black/10 rounded-lg px-3 py-2.5 text-sm dark:text-white text-slate-900 placeholder-slate-700 outline-none focus:border-indigo-500/50"
+                         className="w-full bg-[#13161e] border border-main rounded-lg px-3 py-2.5 text-sm text-main placeholder-slate-700 outline-none focus:border-indigo-500/50"
                          value={newFieldValue}
                          onChange={e => setNewFieldValue(e.target.value)}
                        />
                        <div className="flex gap-3 pt-2">
                           <button onClick={handleAddField} className="flex-1 bg-indigo-600 hover:bg-indigo-500 py-2.5 rounded-lg text-xs font-bold transition-all active:scale-95">ADD FIELD</button>
-                          <button onClick={() => setIsAddingField(false)} className="px-4 py-2.5 dark:bg-white/5 bg-black/5 hover:dark:bg-white/10 bg-black/10 rounded-lg text-xs font-bold transition-all">CANCEL</button>
+                          <button onClick={() => setIsAddingField(false)} className="px-4 py-2.5 bg-main hover:dark:bg-white/10 rounded-lg text-xs font-bold transition-all">CANCEL</button>
                        </div>
                     </div>
                  ) : (
                     <button 
                       onClick={() => setIsAddingField(true)}
-                      className="w-full mt-4 py-4 border border-dashed dark:border-white/10 border-black/10 rounded-xl text-xs font-bold text-slate-500 hover:border-indigo-500/30 hover:text-indigo-400 transition-all flex items-center justify-center gap-2 group"
+                      className="w-full mt-4 py-4 border border-dashed border-main rounded-xl text-xs font-bold text-muted hover:border-indigo-500/30 hover:text-indigo-600 dark:text-indigo-400 transition-all flex items-center justify-center gap-2 group"
                     >
-                       <div className="w-6 h-6 rounded-full dark:bg-white/5 bg-black/5 flex items-center justify-center group-hover:bg-indigo-500/20 transition-all">
+                       <div className="w-6 h-6 rounded-full bg-main flex items-center justify-center group-hover:bg-indigo-500/20 transition-all">
                           <Check className="w-4 h-4" />
                        </div> 
                        ADD MANUAL FIELD
@@ -444,13 +474,13 @@ export default function PropertiesPanel() {
                </div>
             </div>
 
-            <div className="p-4 dark:bg-white/5 bg-black/5 flex justify-end gap-3 shrink-0 border-t dark:border-white/5 border-black/5">
+            <div className="p-4 bg-main flex justify-end gap-3 shrink-0 border-t border-main">
               <button 
                 onClick={() => {
                   navigator.clipboard.writeText(JSON.stringify(combinedExtractedData, null, 2))
                   alert('JSON copied to clipboard')
                 }}
-                className="px-4 py-2 dark:bg-white/5 bg-black/5 hover:dark:bg-white/10 bg-black/10 dark:text-slate-300 text-slate-700 text-[10px] font-bold rounded-lg transition-all active:scale-95"
+                className="px-4 py-2 bg-main hover:dark:bg-white/10 text-muted text-[10px] font-bold rounded-lg transition-all active:scale-95"
               >
                 COPY RAW JSON
               </button>
@@ -472,7 +502,7 @@ export default function PropertiesPanel() {
                   link.click();
                   document.body.removeChild(link);
                 }}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 dark:text-white text-slate-900 text-[10px] font-bold rounded-lg transition-all active:scale-95 flex items-center gap-2"
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold rounded-lg transition-all active:scale-95 flex items-center gap-2"
               >
                 EXPORT TO EXCEL
               </button>
@@ -486,9 +516,9 @@ export default function PropertiesPanel() {
 
 function Section({ title, icon, children }) {
   return (
-    <div>
-      <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">
-        {icon} {title}
+    <div className="bg-white/5 p-4 rounded-xl border border-main mb-4">
+      <div className="flex items-center gap-2.5 text-[10px] font-black uppercase tracking-widest text-muted mb-4 pb-2 border-b border-main">
+        <span className="text-indigo-500">{icon}</span> {title}
       </div>
       {children}
     </div>
@@ -497,9 +527,9 @@ function Section({ title, icon, children }) {
 
 function InfoRow({ label, value }) {
   return (
-    <div className="flex justify-between items-center py-1.5 border-b dark:border-white/5 border-black/5 last:border-0">
-      <span className="text-xs text-slate-500">{label}</span>
-      <span className="text-xs font-medium dark:text-slate-200 text-slate-800 font-mono">{value}</span>
+    <div className="flex justify-between items-center py-2 border-b border-main last:border-0 group">
+      <span className="text-[11px] text-muted group-hover:dark:text-slate-400 group-hover:text-slate-600 transition-colors">{label}</span>
+      <span className="text-[11px] font-bold text-main font-mono tracking-tight">{value}</span>
     </div>
   )
 }

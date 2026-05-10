@@ -25,12 +25,21 @@ const AdminRoute = ({ children }) => {
 
 const AppRoutes = () => {
   const { init } = useAuthStore()
-  const { initTheme } = useThemeStore()
+  const { theme } = useThemeStore()
   
   useEffect(() => {
     init()
-    initTheme()
   }, [])
+
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark')
+      document.documentElement.setAttribute('data-theme', 'dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+      document.documentElement.setAttribute('data-theme', 'light')
+    }
+  }, [theme])
 
   return (
     <Routes>

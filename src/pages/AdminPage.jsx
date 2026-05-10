@@ -18,22 +18,22 @@ export default function AdminPage() {
   const [activeTab, setActiveTab] = useState('users') // 'users' | 'doctypes' | 'checklists' | 'settings'
 
   return (
-    <div className="min-h-screen bg-[#0d0f14] text-slate-200 flex">
+    <div className="min-h-screen bg-surface-900 text-slate-200 flex">
       {/* Sidebar */}
-      <aside className="w-64 border-r border-white/5 bg-surface-900/50 flex flex-col">
+      <aside className="w-64 border-r dark:border-white/5 border-black/5 bg-surface-900/50 flex flex-col">
         <div className="p-6">
           <button
             onClick={() => navigate('/')}
-            className="flex items-center gap-2 text-slate-500 hover:text-white transition-colors text-sm mb-8"
+            className="flex items-center gap-2 text-slate-500 hover:dark:text-white text-slate-900 transition-colors text-sm mb-8"
           >
             <ArrowLeft className="w-4 h-4" /> Back to App
           </button>
 
           <div className="flex items-center gap-2 mb-10">
             <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-              <ShieldAlert className="w-5 h-5 text-white" />
+              <ShieldAlert className="w-5 h-5 dark:text-white text-slate-900" />
             </div>
-            <span className="font-bold text-lg text-white">Admin Console</span>
+            <span className="font-bold text-lg dark:text-white text-slate-900">Admin Console</span>
           </div>
 
           <nav className="space-y-1">
@@ -64,7 +64,7 @@ export default function AdminPage() {
           </nav>
         </div>
 
-        <div className="mt-auto p-6 border-t border-white/5">
+        <div className="mt-auto p-6 border-t dark:border-white/5 border-black/5">
            <div className="p-4 rounded-xl bg-indigo-500/5 border border-indigo-500/10">
               <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1">Status</p>
               <p className="text-xs text-slate-400">Database Synchronized</p>
@@ -74,9 +74,9 @@ export default function AdminPage() {
 
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto">
-         <header className="p-8 border-b border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+         <header className="p-8 border-b dark:border-white/5 border-black/5 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex-1 min-w-0">
-              <h1 className="text-2xl font-bold text-white truncate">
+              <h1 className="text-2xl font-bold dark:text-white text-slate-900 truncate">
                 {activeTab === 'users' ? 'Manage Users' : activeTab === 'doctypes' ? 'Managed Document Types' : activeTab === 'checklists' ? 'Global Checklists' : 'System Settings'}
               </h1>
               <p className="text-sm text-slate-500 mt-1 max-w-2xl">
@@ -216,7 +216,7 @@ function UserManagement() {
               placeholder="Find user by name or email..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="w-full bg-surface-800/50 border border-white/5 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:border-indigo-500/50 outline-none transition-all"
+              className="w-full bg-surface-800/50 border dark:border-white/5 border-black/5 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:border-indigo-500/50 outline-none transition-all"
             />
           </div>
          <button
@@ -237,7 +237,7 @@ function UserManagement() {
                     type="email"
                     value={newUser.email}
                     onChange={e => setNewUser({...newUser, email: e.target.value})}
-                    className="w-full bg-[#13161e] border border-white/10 rounded-xl px-4 py-2 text-sm outline-none focus:border-indigo-500"
+                    className="w-full bg-surface-900 border dark:border-white/10 border-black/10 rounded-xl px-4 py-2 text-sm outline-none focus:border-indigo-500"
                     placeholder="email@example.com"
                   />
                 </div>
@@ -247,7 +247,7 @@ function UserManagement() {
                     type="text"
                     value={newUser.name}
                     onChange={e => setNewUser({...newUser, name: e.target.value})}
-                    className="w-full bg-[#13161e] border border-white/10 rounded-xl px-4 py-2 text-sm outline-none focus:border-indigo-500"
+                    className="w-full bg-surface-900 border dark:border-white/10 border-black/10 rounded-xl px-4 py-2 text-sm outline-none focus:border-indigo-500"
                     placeholder="John Doe"
                   />
                 </div>
@@ -258,7 +258,7 @@ function UserManagement() {
                     type="password"
                     value={newUser.password}
                     onChange={e => setNewUser({...newUser, password: e.target.value})}
-                    className={`w-full bg-[#13161e] border ${pwdErrorState ? 'border-red-500' : 'border-white/10'} rounded-xl px-4 py-2 text-sm outline-none focus:border-indigo-500`}
+                    className={`w-full bg-surface-900 border ${pwdErrorState ? 'border-red-500' : 'dark:border-white/10 border-black/10'} rounded-xl px-4 py-2 text-sm outline-none focus:border-indigo-500`}
                     placeholder="••••••••"
                   />
                   {pwdErrorState ? (
@@ -279,9 +279,9 @@ function UserManagement() {
 
         {resettingUser && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-             <form onSubmit={handleResetPassword} className="w-full max-w-md bg-[#13161e] border border-white/10 rounded-2xl p-8 shadow-2xl fade-up space-y-6">
+             <form onSubmit={handleResetPassword} className="w-full max-w-md bg-surface-800 border dark:border-white/10 border-black/10 rounded-2xl p-8 shadow-2xl fade-up space-y-6">
                 <div>
-                   <h3 className="text-xl font-bold text-white mb-1">Reset Password</h3>
+                   <h3 className="text-xl font-bold dark:text-white text-slate-900 mb-1">Reset Password</h3>
                    <p className="text-xs text-slate-500">Updating password for <span className="text-indigo-400">{resettingUser.email}</span></p>
                 </div>
                 <div>
@@ -291,7 +291,7 @@ function UserManagement() {
                     type="password"
                     value={newPassword}
                     onChange={e => setNewPassword(e.target.value)}
-                    className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-500"
+                    className="w-full bg-black/20 border dark:border-white/10 border-black/10 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-500"
                     placeholder="••••••••"
                   />
                   <p className="text-[9px] text-slate-500 mt-2 italic">Must be 8+ chars with symbols.</p>
@@ -304,7 +304,7 @@ function UserManagement() {
           </div>
         )}
 
-       <div className="overflow-hidden rounded-2xl border border-white/5 bg-surface-900/30">
+       <div className="overflow-hidden rounded-2xl border dark:border-white/5 border-black/5 bg-surface-900/30">
          <table className="w-full text-left text-sm">
            <thead className="bg-white/5 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
              <tr>
@@ -331,7 +331,7 @@ function UserManagement() {
                         {user.name?.charAt(0) || user.email.charAt(0)}
                       </div>
                       <div className="min-w-0">
-                        <p className="font-semibold text-white truncate">{user.name || 'Set name'}</p>
+                        <p className="font-semibold dark:text-white text-slate-900 truncate">{user.name || 'Set name'}</p>
                         <p className="text-[10px] text-slate-500 truncate">{user.email}</p>
                       </div>
                     </div>
@@ -340,7 +340,7 @@ function UserManagement() {
                     <select 
                        value={user.role} 
                        onChange={(e) => updateUser(user.id, { role: e.target.value }).then(load)}
-                       className="bg-[#13161e] text-[10px] font-bold text-slate-400 border border-white/10 rounded-lg px-2 py-1 outline-none hover:border-indigo-500 transition-colors cursor-pointer"
+                       className="bg-surface-800 text-[10px] font-bold text-slate-400 border dark:border-white/10 border-black/10 rounded-lg px-2 py-1 outline-none hover:border-indigo-500 transition-colors cursor-pointer"
                     >
                        <option value="OPERATOR">OPERATOR</option>
                        <option value="ADMIN">ADMIN</option>
@@ -359,14 +359,14 @@ function UserManagement() {
                    <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                      <button 
                        onClick={() => toggleStatus(user)} 
-                       className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-white transition-colors"
+                       className="p-2 rounded-lg bg-white/5 text-slate-400 hover:dark:text-white text-slate-900 transition-colors"
                        title={user.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
                      >
                         {user.status === 'ACTIVE' ? <XCircle className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
                      </button>
                       <button 
                         onClick={() => { setResettingUser(user); setNewPassword('') }} 
-                        className="p-2 rounded-lg bg-white/5 text-slate-400 hover:text-white transition-colors"
+                        className="p-2 rounded-lg bg-white/5 text-slate-400 hover:dark:text-white text-slate-900 transition-colors"
                         title="Reset Password"
                       >
                          <Settings className="w-4 h-4" />
@@ -440,9 +440,9 @@ function DocTypeManagement() {
 
         {showAdd && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-            <form onSubmit={handleAdd} className="w-full max-w-2xl bg-[#13161e] border border-white/10 rounded-2xl p-8 shadow-2xl space-y-6">
+            <form onSubmit={handleAdd} className="w-full max-w-2xl bg-surface-800 border dark:border-white/10 border-black/10 rounded-2xl p-8 shadow-2xl space-y-6">
                <div>
-                  <h3 className="text-xl font-bold text-white mb-1">Add Document Type</h3>
+                  <h3 className="text-xl font-bold dark:text-white text-slate-900 mb-1">Add Document Type</h3>
                   <p className="text-xs text-slate-500">Define a new document classification.</p>
                </div>
                
@@ -454,7 +454,7 @@ function DocTypeManagement() {
                       placeholder="e.g. ASSETS_401K"
                       value={newType.code}
                       onChange={e => setNewType({...newType, code: e.target.value})}
-                      className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-500"
+                      className="w-full bg-black/20 border dark:border-white/10 border-black/10 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-500"
                     />
                   </div>
                   <div>
@@ -464,7 +464,7 @@ function DocTypeManagement() {
                       placeholder="e.g. Assets: Investment/401(k) Summary"
                       value={newType.label}
                       onChange={e => setNewType({...newType, label: e.target.value})}
-                      className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-500"
+                      className="w-full bg-black/20 border dark:border-white/10 border-black/10 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-500"
                     />
                   </div>
                </div>
@@ -479,9 +479,9 @@ function DocTypeManagement() {
 
         {editingType && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-            <form onSubmit={handleUpdate} className="w-full max-w-2xl bg-[#13161e] border border-white/10 rounded-2xl p-8 shadow-2xl space-y-6">
+            <form onSubmit={handleUpdate} className="w-full max-w-2xl bg-surface-800 border dark:border-white/10 border-black/10 rounded-2xl p-8 shadow-2xl space-y-6">
                <div>
-                  <h3 className="text-xl font-bold text-white mb-1">Edit Document Type</h3>
+                  <h3 className="text-xl font-bold dark:text-white text-slate-900 mb-1">Edit Document Type</h3>
                   <p className="text-xs text-slate-500">Update classification details.</p>
                </div>
                
@@ -492,7 +492,7 @@ function DocTypeManagement() {
                       required
                       value={editingType.code}
                       onChange={e => setEditingType({...editingType, code: e.target.value})}
-                      className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-500"
+                      className="w-full bg-black/20 border dark:border-white/10 border-black/10 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-500"
                     />
                   </div>
                   <div>
@@ -501,7 +501,7 @@ function DocTypeManagement() {
                       required
                       value={editingType.label}
                       onChange={e => setEditingType({...editingType, label: e.target.value})}
-                      className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-500"
+                      className="w-full bg-black/20 border dark:border-white/10 border-black/10 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-500"
                     />
                   </div>
                </div>
@@ -516,13 +516,13 @@ function DocTypeManagement() {
 
        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {types.map(t => (
-            <div key={t.id} className="group p-5 rounded-2xl bg-surface-900/30 border border-white/5 hover:border-indigo-500/20 transition-all">
+            <div key={t.id} className="group p-5 rounded-2xl bg-surface-900/30 border dark:border-white/5 border-black/5 hover:border-indigo-500/20 transition-all">
                <div className="flex items-start justify-between mb-3">
                   <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400">
                     <FileStack className="w-5 h-5" />
                   </div>
                   <div className="flex gap-1">
-                    <button onClick={() => setEditingType(t)} className="p-2 text-slate-500 hover:text-white opacity-0 group-hover:opacity-100 transition-all">
+                    <button onClick={() => setEditingType(t)} className="p-2 text-slate-500 hover:dark:text-white text-slate-900 opacity-0 group-hover:opacity-100 transition-all">
                       <Edit2 className="w-4 h-4" />
                     </button>
                     <button onClick={() => handleDelete(t.id)} className="p-2 text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all">
@@ -530,9 +530,9 @@ function DocTypeManagement() {
                     </button>
                   </div>
                </div>
-               <h4 className="font-bold text-white mb-1">{t.label}</h4>
+               <h4 className="font-bold dark:text-white text-slate-900 mb-1">{t.label}</h4>
                <p className="font-mono text-[10px] text-slate-600 mb-4">{t.code}</p>
-               <div className="flex items-center justify-between pt-4 border-t border-white/5">
+               <div className="flex items-center justify-between pt-4 border-t dark:border-white/5 border-black/5">
                   <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
                     <CheckCircle className="w-3.5 h-3.5 text-emerald-400" /> Auto-enabled
                   </span>
@@ -582,18 +582,18 @@ function ChecklistManagement() {
     <div className="space-y-6 max-w-3xl">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-lg font-bold text-white mb-1">Global Checklist Requirements</h2>
+          <h2 className="text-lg font-bold dark:text-white text-slate-900 mb-1">Global Checklist Requirements</h2>
           <p className="text-sm text-slate-500">Define general checklist items that will be applicable to all documents across the workspace.</p>
         </div>
       </div>
 
-      <form onSubmit={handleAdd} className="flex gap-3 bg-surface-900/30 p-4 rounded-2xl border border-white/5">
+      <form onSubmit={handleAdd} className="flex gap-3 bg-surface-900/30 p-4 rounded-2xl border dark:border-white/5 border-black/5">
         <input
           required
           placeholder="e.g. Verify applicant signature is present..."
           value={newItem}
           onChange={e => setNewItem(e.target.value)}
-          className="flex-1 bg-[#13161e] border border-white/10 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-500 transition-colors"
+          className="flex-1 bg-surface-900 border dark:border-white/10 border-black/10 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-500 transition-colors"
         />
         <button type="submit" className="px-6 py-3 bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-indigo-600/20 hover:bg-indigo-500 transition-all">
           Add Requirement
@@ -604,14 +604,14 @@ function ChecklistManagement() {
         {loading ? (
           <p className="text-sm text-slate-500">Loading checklists...</p>
         ) : checklists.length === 0 ? (
-          <div className="p-8 text-center border border-dashed border-white/10 rounded-2xl bg-white/5">
+          <div className="p-8 text-center border border-dashed dark:border-white/10 border-black/10 rounded-2xl bg-white/5">
             <List className="w-8 h-8 text-slate-500 mx-auto mb-3 opacity-50" />
             <p className="text-sm text-slate-400">No global checklist items defined.</p>
             <p className="text-xs text-slate-500 mt-1">Add items above to enforce standard checks for all documents.</p>
           </div>
         ) : (
           checklists.map((item) => (
-            <div key={item.id} className="flex items-center justify-between p-4 rounded-xl bg-surface-800/50 border border-white/5 group hover:border-indigo-500/30 transition-all">
+            <div key={item.id} className="flex items-center justify-between p-4 rounded-xl bg-surface-800/50 border dark:border-white/5 border-black/5 group hover:border-indigo-500/30 transition-all">
               <div className="flex items-center gap-4">
                 <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400 shrink-0">
                   <CheckCircle className="w-4 h-4" />
@@ -667,10 +667,10 @@ function SystemSettings() {
 
   return (
     <div className="max-w-3xl space-y-8">
-      <div className="flex items-center gap-4 border-b border-white/5 pb-6">
+      <div className="flex items-center gap-4 border-b dark:border-white/5 border-black/5 pb-6">
          <button 
            onClick={() => setSettings({...settings, provider: 'SFTP'})}
-           className={`flex-1 p-6 rounded-2xl border transition-all ${settings.provider === 'SFTP' ? 'bg-indigo-500/10 border-indigo-500/50' : 'bg-surface-900/30 border-white/5 hover:border-white/10'}`}
+           className={`flex-1 p-6 rounded-2xl border transition-all ${settings.provider === 'SFTP' ? 'bg-indigo-500/10 border-indigo-500/50' : 'bg-surface-900/30 dark:border-white/5 border-black/5 hover:dark:border-white/10 border-black/10'}`}
          >
             <Server className={`w-8 h-8 mb-3 ${settings.provider === 'SFTP' ? 'text-indigo-400' : 'text-slate-500'}`} />
             <h3 className={`font-bold ${settings.provider === 'SFTP' ? 'text-indigo-100' : 'text-slate-400'}`}>SFTP Server</h3>
@@ -679,7 +679,7 @@ function SystemSettings() {
          
          <button 
            onClick={() => setSettings({...settings, provider: 'S3'})}
-           className={`flex-1 p-6 rounded-2xl border transition-all ${settings.provider === 'S3' ? 'bg-orange-500/10 border-orange-500/50' : 'bg-surface-900/30 border-white/5 hover:border-white/10'}`}
+           className={`flex-1 p-6 rounded-2xl border transition-all ${settings.provider === 'S3' ? 'bg-orange-500/10 border-orange-500/50' : 'bg-surface-900/30 dark:border-white/5 border-black/5 hover:dark:border-white/10 border-black/10'}`}
          >
             <Cloud className={`w-8 h-8 mb-3 ${settings.provider === 'S3' ? 'text-orange-400' : 'text-slate-500'}`} />
             <h3 className={`font-bold ${settings.provider === 'S3' ? 'text-orange-100' : 'text-slate-400'}`}>AWS S3</h3>
@@ -691,7 +691,7 @@ function SystemSettings() {
         
         {settings.provider === 'SFTP' && (
           <div className="space-y-4 fade-up">
-            <h3 className="text-lg font-bold text-white mb-4">SFTP Credentials</h3>
+            <h3 className="text-lg font-bold dark:text-white text-slate-900 mb-4">SFTP Credentials</h3>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Host</label>
@@ -699,7 +699,7 @@ function SystemSettings() {
                   type="text"
                   value={settings.sftpHost || ''}
                   onChange={e => setSettings({...settings, sftpHost: e.target.value})}
-                  className="w-full bg-[#13161e] border border-white/10 rounded-xl px-4 py-2 text-sm outline-none focus:border-indigo-500"
+                  className="w-full bg-surface-900 border dark:border-white/10 border-black/10 rounded-xl px-4 py-2 text-sm outline-none focus:border-indigo-500"
                   placeholder="sftp.example.com"
                 />
               </div>
@@ -709,7 +709,7 @@ function SystemSettings() {
                   type="number"
                   value={settings.sftpPort || ''}
                   onChange={e => setSettings({...settings, sftpPort: parseInt(e.target.value)})}
-                  className="w-full bg-[#13161e] border border-white/10 rounded-xl px-4 py-2 text-sm outline-none focus:border-indigo-500"
+                  className="w-full bg-surface-900 border dark:border-white/10 border-black/10 rounded-xl px-4 py-2 text-sm outline-none focus:border-indigo-500"
                   placeholder="22"
                 />
               </div>
@@ -719,7 +719,7 @@ function SystemSettings() {
                   type="text"
                   value={settings.sftpUser || ''}
                   onChange={e => setSettings({...settings, sftpUser: e.target.value})}
-                  className="w-full bg-[#13161e] border border-white/10 rounded-xl px-4 py-2 text-sm outline-none focus:border-indigo-500"
+                  className="w-full bg-surface-900 border dark:border-white/10 border-black/10 rounded-xl px-4 py-2 text-sm outline-none focus:border-indigo-500"
                 />
               </div>
               <div>
@@ -728,7 +728,7 @@ function SystemSettings() {
                   type="password"
                   value={settings.sftpPass || ''}
                   onChange={e => setSettings({...settings, sftpPass: e.target.value})}
-                  className="w-full bg-[#13161e] border border-white/10 rounded-xl px-4 py-2 text-sm outline-none focus:border-indigo-500"
+                  className="w-full bg-surface-900 border dark:border-white/10 border-black/10 rounded-xl px-4 py-2 text-sm outline-none focus:border-indigo-500"
                 />
               </div>
             </div>
@@ -737,7 +737,7 @@ function SystemSettings() {
 
         {settings.provider === 'S3' && (
           <div className="space-y-4 fade-up">
-            <h3 className="text-lg font-bold text-white mb-4">AWS S3 Configuration</h3>
+            <h3 className="text-lg font-bold dark:text-white text-slate-900 mb-4">AWS S3 Configuration</h3>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Bucket Name</label>
@@ -745,7 +745,7 @@ function SystemSettings() {
                   type="text"
                   value={settings.s3Bucket || ''}
                   onChange={e => setSettings({...settings, s3Bucket: e.target.value})}
-                  className="w-full bg-[#13161e] border border-white/10 rounded-xl px-4 py-2 text-sm outline-none focus:border-indigo-500"
+                  className="w-full bg-surface-900 border dark:border-white/10 border-black/10 rounded-xl px-4 py-2 text-sm outline-none focus:border-indigo-500"
                   placeholder="my-company-documents"
                 />
               </div>
@@ -755,7 +755,7 @@ function SystemSettings() {
                   type="text"
                   value={settings.s3Region || ''}
                   onChange={e => setSettings({...settings, s3Region: e.target.value})}
-                  className="w-full bg-[#13161e] border border-white/10 rounded-xl px-4 py-2 text-sm outline-none focus:border-indigo-500"
+                  className="w-full bg-surface-900 border dark:border-white/10 border-black/10 rounded-xl px-4 py-2 text-sm outline-none focus:border-indigo-500"
                   placeholder="us-east-1"
                 />
               </div>
@@ -765,7 +765,7 @@ function SystemSettings() {
                   type="text"
                   value={settings.s3AccessKey || ''}
                   onChange={e => setSettings({...settings, s3AccessKey: e.target.value})}
-                  className="w-full bg-[#13161e] border border-white/10 rounded-xl px-4 py-2 text-sm outline-none focus:border-indigo-500"
+                  className="w-full bg-surface-900 border dark:border-white/10 border-black/10 rounded-xl px-4 py-2 text-sm outline-none focus:border-indigo-500"
                 />
               </div>
               <div>
@@ -774,14 +774,14 @@ function SystemSettings() {
                   type="password"
                   value={settings.s3SecretKey || ''}
                   onChange={e => setSettings({...settings, s3SecretKey: e.target.value})}
-                  className="w-full bg-[#13161e] border border-white/10 rounded-xl px-4 py-2 text-sm outline-none focus:border-indigo-500"
+                  className="w-full bg-surface-900 border dark:border-white/10 border-black/10 rounded-xl px-4 py-2 text-sm outline-none focus:border-indigo-500"
                 />
               </div>
             </div>
           </div>
         )}
 
-        <div className="pt-6 border-t border-white/5 flex justify-end">
+        <div className="pt-6 border-t dark:border-white/5 border-black/5 flex justify-end">
           <button type="submit" disabled={saving} className="btn-primary w-40">
             {saving ? 'Saving...' : 'Save Configuration'}
           </button>
