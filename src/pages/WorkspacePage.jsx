@@ -13,7 +13,7 @@ import useToastStore from '../store/toastStore'
 export default function WorkspacePage() {
   const { blobId } = useParams()
   const navigate = useNavigate()
-  const { blob, documents, loading, error, loadBlob, selectedDocumentId, saveDocumentChecklists } = useWorkspaceStore()
+  const { blob, pages, documents, loading, error, loadBlob, selectedDocumentId, saveDocumentChecklists } = useWorkspaceStore()
   const { theme, toggleTheme } = useThemeStore()
   const { showToast } = useToastStore()
   const [globalChecklists, setGlobalChecklists] = useState([])

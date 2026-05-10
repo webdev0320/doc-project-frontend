@@ -7,7 +7,7 @@ import useToastStore from '../store/toastStore'
 
 export default function PropertiesPanel() {
   const {
-    pages, documents, selectedPageId, selectedDocumentId,
+    blob, pages, documents, selectedPageId, selectedDocumentId,
     selectDocument, verifyDocument, renameDocument, mergeDocuments
   } = useWorkspaceStore()
 
