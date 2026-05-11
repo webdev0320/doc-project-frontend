@@ -13,7 +13,7 @@ import useToastStore from '../store/toastStore'
 export default function WorkspacePage() {
   const { blobId } = useParams()
   const navigate = useNavigate()
-  const { blob, pages, documents, loading, error, loadBlob, selectedDocumentId, saveDocumentChecklists } = useWorkspaceStore()
+  const { blob, pages, documents, loading, error, loadBlob, selectedDocumentId, saveDocumentChecklists, markAsComplete } = useWorkspaceStore()
   const { theme, toggleTheme } = useThemeStore()
   const { showToast } = useToastStore()
   const [globalChecklists, setGlobalChecklists] = useState([])
@@ -118,7 +118,7 @@ export default function WorkspacePage() {
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,_var(--tw-gradient-stops))] dark:from-blue-500/10 from-blue-500/5 dark:via-transparent via-transparent dark:to-transparent to-transparent pointer-events-none" />
       
       {/* Top bar */}
-      <header className="relative z-10 flex items-center gap-4 px-4 py-2.5 bg-surface/80 backdrop-blur-2xl border-b border-main shrink-0 shadow-sm">
+      <header className="relative z-[60] flex items-center gap-4 px-4 py-2.5 bg-surface/80 backdrop-blur-2xl border-b border-main shrink-0 shadow-lg">
         <button
           id="back-to-dashboard"
           onClick={() => navigate('/')}
@@ -210,18 +210,30 @@ export default function WorkspacePage() {
           </button>
 
           <button
+            id="export-to-sftp"
             onClick={handleExport}
             disabled={exporting || blob?.status !== 'COMPLETED'}
             className={`
-              flex items-center gap-2 px-3 py-1.5 text-white text-xs font-bold rounded-lg shadow-lg transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed
-              ${blob?.status === 'COMPLETED' ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/40' : 'bg-surface-600'}
+              flex items-center gap-2 px-4 py-2 text-white text-xs font-bold rounded-xl shadow-xl transition-all active:scale-95 disabled:opacity-20 disabled:grayscale disabled:cursor-not-allowed
+              ${blob?.status === 'COMPLETED' ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 shadow-emerald-500/20' : 'bg-slate-700'}
             `}
           >
-            {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileUp className="w-3.5 h-3.5" />}
+            {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileUp className="w-4 h-4" />}
             {exporting ? 'Exporting...' : 'Export to SFTP'}
           </button>
 
-          <StatusBadge status={blob?.status} />
+          <div className="flex items-center gap-2">
+            <StatusBadge status={blob?.status} />
+            {blob?.status === 'IN-PROGRESS' && (
+              <button 
+                onClick={markAsComplete}
+                className="p-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 border border-emerald-500/20 transition-all active:scale-95"
+                title="Mark Batch as Complete"
+              >
+                <CheckCircle className="w-4 h-4" />
+              </button>
+            )}
+          </div>
         </div>
       </header>
 

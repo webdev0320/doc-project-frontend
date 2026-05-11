@@ -45,6 +45,7 @@ export const mergeDocuments = (payload) => api.post('/documents/merge', payload)
 export const verifyDocument = (id, payload) => api.patch(`/documents/${id}/verify`, payload)
 export const saveDocumentChecklists = (id, checklists) => api.patch(`/documents/${id}/checklists`, { checklists })
 export const renameDocument = (id, payload) => api.patch(`/documents/${id}/rename`, payload)
+export const updateBlob = (id, data) => api.patch(`/blobs/${id}`, data)
 
 
 export const addBlobPages = (blobId, file, onProgress) => {

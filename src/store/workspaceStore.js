@@ -158,6 +158,14 @@ const useWorkspaceStore = create((set, get) => ({
     const { data } = await renameDocument(docId, { name, documentType, blobId: blob.id })
     set({ documents: documents.map((d) => (d.id === docId ? { ...d, ...data.data } : d)) })
   },
+  
+  markAsComplete: async () => {
+    const { blob } = get()
+    if (!blob) return
+    const { updateBlob } = await import('../api/client')
+    const { data } = await updateBlob(blob.id, { status: 'COMPLETED' })
+    set({ blob: { ...blob, status: 'COMPLETED' } })
+  },
 
 
 
