@@ -499,7 +499,7 @@ export default function DashboardPage() {
                             </div>
                           ) : (
                             <button 
-                              onClick={(e) => { e.stopPropagation(); setAssigningBlob(blob) }}
+                              onClick={(e) => { e.stopPropagation(); setAssigningBlob(blob); setBatchNo(blob.filename.split('.')[0]) }}
                               className="px-3 py-1 rounded-lg bg-indigo-500/10 text-indigo-400 text-[10px] font-bold hover:bg-indigo-500/20 border border-indigo-500/20 transition-all"
                             >
                               Assign to Me
@@ -544,7 +544,7 @@ export default function DashboardPage() {
               <div className="bg-surface border border-main rounded-2xl w-full max-w-md shadow-2xl fade-up overflow-hidden">
                 <div className="px-6 py-4 border-b border-main flex items-center justify-between">
                   <h3 className="text-sm font-bold dark:text-white text-slate-900 uppercase tracking-widest">Assign Document</h3>
-                  <button onClick={() => setAssigningBlob(null)} className="text-muted hover:dark:text-white text-slate-900"><X className="w-4 h-4" /></button>
+                  <button onClick={() => { setAssigningBlob(null); setBatchNo(''); }} className="text-muted hover:dark:text-white text-slate-900"><X className="w-4 h-4" /></button>
                 </div>
                 <div className="p-6 space-y-4">
                   <div className="p-4 rounded-xl bg-indigo-500/5 border border-indigo-500/10">
@@ -566,7 +566,7 @@ export default function DashboardPage() {
 
                   <div className="flex items-center gap-3 pt-2">
                     <button 
-                      onClick={() => setAssigningBlob(null)}
+                      onClick={() => { setAssigningBlob(null); setBatchNo(''); }}
                       className="flex-1 px-4 py-2.5 rounded-xl dark:bg-white/5 bg-black/5 text-muted hover:dark:bg-white/10 bg-black/10 text-xs font-bold transition-all"
                     >
                       Cancel
