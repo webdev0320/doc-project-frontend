@@ -150,7 +150,7 @@ export default function WorkspacePage() {
             </button>
 
             {showChecklist && (
-              <div className="absolute top-full right-0 mt-2 w-80 bg-surface border border-main rounded-2xl shadow-2xl z-50 p-4 fade-up">
+              <div className="fixed top-14 right-4 mt-2 w-80 bg-surface border border-main rounded-2xl shadow-2xl z-[9999] p-4 animate-in slide-in-from-top-2 duration-200">
                 <h3 className="text-[10px] font-bold text-muted uppercase tracking-widest mb-3 flex items-center gap-2">
                   <List className="w-3.5 h-3.5" /> Document Checklist
                 </h3>
@@ -222,15 +222,15 @@ export default function WorkspacePage() {
             {exporting ? 'Exporting...' : 'Export to SFTP'}
           </button>
 
-          <div className="flex items-center gap-2">
-            <StatusBadge status={blob?.status} />
-            {blob?.status === 'IN-PROGRESS' && (
+          <div className="flex items-center gap-3">
+            <StatusBadge status={blob?.status || 'LOADING'} />
+            {blob?.status !== 'COMPLETED' && (
               <button 
                 onClick={markAsComplete}
-                className="p-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 border border-emerald-500/20 transition-all active:scale-95"
-                title="Mark Batch as Complete"
+                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-xl shadow-emerald-500/20 transition-all active:scale-95 whitespace-nowrap"
               >
-                <CheckCircle className="w-4 h-4" />
+                <CheckCircle className="w-3.5 h-3.5" />
+                Finish Batch
               </button>
             )}
           </div>
