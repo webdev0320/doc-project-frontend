@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch'
 import useWorkspaceStore from '../store/workspaceStore'
 import {
@@ -13,6 +13,7 @@ export default function MainCanvas() {
   const { pages, selectedPageId, selectPage, rotatePage } = useWorkspaceStore()
   const [imgError, setImgError] = useState(false)
   const [isPanning, setIsPanning] = useState(true)
+  const scrollCooldown = useRef(0)
 
   const page = pages.find((p) => p.id === selectedPageId)
   const idx = pages.findIndex((p) => p.id === selectedPageId)
@@ -21,10 +22,26 @@ export default function MainCanvas() {
   const prev = () => idx > 0 && selectPage(pages[idx - 1].id)
   const next = () => idx < pages.length - 1 && selectPage(pages[idx + 1].id)
 
+  const handleWheel = (e) => {
+    // Prevent accidental triggers from trackpads or slow scrolls
+    if (Math.abs(e.deltaY) < 20) return
+
+    const now = Date.now()
+    if (now - scrollCooldown.current < 500) return // 500ms cooldown
+
+    if (e.deltaY > 0) {
+      next()
+      scrollCooldown.current = now
+    } else if (e.deltaY < 0) {
+      prev()
+      scrollCooldown.current = now
+    }
+  }
+
   return (
     <div className="flex flex-col h-full bg-transparent relative">
       {/* Canvas Area */}
-      <div className="flex-1 relative overflow-hidden">
+      <div className="flex-1 relative overflow-hidden" onWheel={handleWheel}>
         {page ? (
           <TransformWrapper
             initialScale={1}
@@ -33,7 +50,7 @@ export default function MainCanvas() {
             panning={{ disabled: !isPanning }}
             centerOnInit={true}
             centerZoomedOut={true}
-            wheel={{ step: 0.1 }}
+            wheel={{ disabled: true }}
             limitToBounds={false}
             doubleClick={{ disabled: true }}
           >
