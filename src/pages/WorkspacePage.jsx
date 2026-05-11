@@ -249,6 +249,7 @@ export default function WorkspacePage() {
 function StatusBadge({ status }) {
   const map = {
     PENDING:    'bg-yellow-500/15 text-yellow-600 dark:text-yellow-300 border-yellow-500/30',
+    'IN-PROGRESS': 'bg-blue-500/15 text-blue-600 dark:text-blue-300 border-blue-500/30',
     PROCESSING: 'bg-blue-500/15 text-blue-600 dark:text-blue-300 border-blue-500/30',
     COMPLETED:  'bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border-emerald-500/30',
     FAILED:     'bg-red-500/15 text-red-600 dark:text-red-600 dark:text-red-400 border-red-500/30',
