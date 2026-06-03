@@ -8,7 +8,8 @@ import useToastStore from '../store/toastStore'
 export default function PropertiesPanel() {
   const {
     blob, pages, documents, selectedPageId, selectedDocumentId,
-    selectDocument, verifyDocument, renameDocument, mergeDocuments
+    selectDocument, verifyDocument, renameDocument, mergeDocuments,
+    filterLabel, setFilterLabel
   } = useWorkspaceStore()
 
   const page = pages.find((p) => p.id === selectedPageId)
@@ -188,7 +189,7 @@ export default function PropertiesPanel() {
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      <div className="panel-header">
+      <div className="panel-header flex justify-between items-center">
         <span>AI Properties</span>
         {doc && (
           <StatusBadge status={doc.status} />
@@ -251,23 +252,55 @@ export default function PropertiesPanel() {
           </Section>
         )}
         <Section title="Documents" icon={<Layers className="w-3.5 h-3.5" />}>
-          <div className="space-y-1">
-            {documents.map((d) => (
-              <button
-                key={d.id}
-                id={`doc-select-${d.id}`}
-                onClick={() => selectDocument(d.id)}
-                className={`
-                  w-full text-left px-3 py-2 rounded-lg text-xs transition-all duration-150 border
-                  ${d.id === selectedDocumentId
-                    ? 'bg-indigo-600/10 dark:bg-indigo-600/20 border-indigo-500/40 text-indigo-600 dark:text-indigo-600 dark:text-indigo-200'
-                    : 'bg-surface-700 border-main text-muted hover:dark:border-white/20 border-black/20'}
-                `}
-              >
-                <p className="font-medium truncate text-main">{d.name}</p>
-                <p className="text-muted mt-0.5">{d.documentType} · {d.pages?.length ?? 0}p</p>
-              </button>
-            ))}
+          <div className="space-y-4">
+            <button
+              onClick={() => setFilterLabel(null)}
+              className={`
+                w-full text-left px-2 py-1 rounded text-[10px] font-bold uppercase tracking-widest transition-colors
+                ${filterLabel === null 
+                  ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-500/10' 
+                  : 'text-muted hover:text-indigo-500'}
+              `}
+            >
+              Show All
+            </button>
+            {/* Get all unique labels from pages */}
+            {Array.from(new Set(pages.map(p => p.aiLabel || 'Unclassified'))).sort().map(type => {
+              const docsOfThisType = documents.filter(d => d.documentType === type);
+              
+              return (
+                <div key={type} className="space-y-1">
+                  <button
+                    onClick={() => setFilterLabel(type)}
+                    className={`
+                      w-full text-left px-1 py-1 rounded text-[10px] font-bold uppercase tracking-widest pl-1 transition-colors
+                      ${filterLabel === type 
+                        ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-500/10' 
+                        : 'text-indigo-500 hover:text-indigo-600'}
+                    `}
+                  >
+                    {type}
+                  </button>
+                  
+                  {docsOfThisType.length > 0 && docsOfThisType.map((d) => (
+                    <button
+                      key={d.id}
+                      id={`doc-select-${d.id}`}
+                      onClick={() => selectDocument(d.id)}
+                      className={`
+                        w-full text-left px-3 py-2 rounded-lg text-xs transition-all duration-150 border
+                        ${d.id === selectedDocumentId
+                          ? 'bg-indigo-600/10 dark:bg-indigo-600/20 border-indigo-500/40 text-indigo-600 dark:text-indigo-600 dark:text-indigo-200'
+                          : 'bg-surface-700 border-main text-muted hover:dark:border-white/20 border-black/20'}
+                      `}
+                    >
+                      <p className="font-medium truncate text-main">{d.name}</p>
+                      <p className="text-muted mt-0.5">{d.documentType} · {d.pages?.length ?? 0}p</p>
+                    </button>
+                  ))}
+                </div>
+              );
+            })}
           </div>
         </Section>
 

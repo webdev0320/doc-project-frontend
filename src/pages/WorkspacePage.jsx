@@ -239,20 +239,20 @@ export default function WorkspacePage() {
 
       {/* 3-pane layout */}
       <div className="flex flex-1 overflow-hidden relative z-10 p-4 gap-4">
-        {/* Left: Thumbnail sidebar */}
+        {/* Left: Properties panel (AI Properties) - Fixed */}
+        <aside className="sticky top-0 w-80 h-[calc(100vh-5rem)] panel shrink-0 rounded-2xl border border-main">
+          <PropertiesPanel />
+        </aside>
+
+        {/* Center: Thumbnail sidebar */}
         <aside className="w-64 panel shrink-0 rounded-2xl border border-main">
           <ThumbnailSidebar />
         </aside>
 
-        {/* Center: Main canvas */}
+        {/* Right: Main canvas */}
         <main className="flex-1 overflow-hidden panel rounded-2xl border border-main">
           <MainCanvas />
         </main>
-
-        {/* Right: Properties panel */}
-        <aside className="w-80 panel shrink-0 rounded-2xl border border-main">
-          <PropertiesPanel />
-        </aside>
       </div>
     </div>
   )

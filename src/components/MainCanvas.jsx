@@ -10,17 +10,22 @@ import {
 const S3_BASE = import.meta.env.VITE_STORAGE_BASE || 'https://doc-proj-backend.vercel.app/api/storage/pages'
 
 export default function MainCanvas() {
-  const { pages, selectedPageId, selectPage, rotatePage } = useWorkspaceStore()
+  const { pages, selectedPageId, selectPage, rotatePage, filterLabel } = useWorkspaceStore()
   const [imgError, setImgError] = useState(false)
   const [isPanning, setIsPanning] = useState(true)
   const scrollCooldown = useRef(0)
 
-  const page = pages.find((p) => p.id === selectedPageId)
-  const idx = pages.findIndex((p) => p.id === selectedPageId)
+  // Filter pages if a label is selected
+  const filteredPages = filterLabel 
+    ? pages.filter(p => (p.aiLabel || 'Unclassified') === filterLabel)
+    : pages
+
+  const page = filteredPages.find((p) => p.id === selectedPageId) || filteredPages[0]
+  const idx = filteredPages.findIndex((p) => p.id === (page?.id || selectedPageId))
   const isRotated = page && (page.rotation % 180) !== 0
 
-  const prev = () => idx > 0 && selectPage(pages[idx - 1].id)
-  const next = () => idx < pages.length - 1 && selectPage(pages[idx + 1].id)
+  const prev = () => idx > 0 && selectPage(filteredPages[idx - 1].id)
+  const next = () => idx < filteredPages.length - 1 && selectPage(filteredPages[idx + 1].id)
 
   const handleWheel = (e) => {
     // Prevent accidental triggers from trackpads or slow scrolls

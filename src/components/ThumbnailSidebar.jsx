@@ -17,8 +17,13 @@ const S3_BASE = import.meta.env.VITE_STORAGE_BASE || 'https://doc-proj-backend.v
 export default function ThumbnailSidebar() {
   const {
     pages, selectedPageIds, selectPage, splitAfterPage,
-    rotatePage, staplePages, reorderPages, selectNext, selectPrev
+    rotatePage, staplePages, reorderPages, selectNext, selectPrev, filterLabel
   } = useWorkspaceStore()
+
+  // Filter pages
+  const filteredPages = filterLabel 
+    ? pages.filter(p => (p.aiLabel || 'Unclassified') === filterLabel)
+    : pages
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -45,7 +50,7 @@ export default function ThumbnailSidebar() {
     <div className="flex flex-col h-full bg-transparent shadow-2xl">
       <div className="p-4 border-b border-main flex items-center justify-between">
         <h3 className="text-[11px] font-bold uppercase tracking-widest text-muted">
-          Capture Strip ({pages.length})
+          Capture Strip ({filteredPages.length})
         </h3>
         {selectedPageIds.length > 1 && (
           <button
@@ -61,7 +66,7 @@ export default function ThumbnailSidebar() {
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={pages.map(p => p.id)} strategy={verticalListSortingStrategy}>
              <div className="space-y-4">
-               {pages.map((page, index) => (
+               {filteredPages.map((page, index) => (
                  <SortableItem 
                    key={page.id} 
                    page={page} 

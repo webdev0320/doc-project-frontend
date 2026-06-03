@@ -10,6 +10,7 @@ const useWorkspaceStore = create((set, get) => ({
   selectedPageId: null,
   selectedPageIds: [], // Added for multi-select
   selectedDocumentId: null,
+  filterLabel: null, // Added for filtering
   zoom: 1,
   loading: false,
   error: null,
@@ -28,6 +29,7 @@ const useWorkspaceStore = create((set, get) => ({
         selectedPageId: firstPageId,
         selectedPageIds: firstPageId ? [firstPageId] : [],
         selectedDocumentId: data.data.documents[0]?.id ?? null,
+        filterLabel: null, // Reset filter
       })
     } catch (e) {
       set({ error: e.message, loading: false })
@@ -46,7 +48,8 @@ const useWorkspaceStore = create((set, get) => ({
     }
   },
 
-  selectDocument: (docId) => set({ selectedDocumentId: docId }),
+  selectDocument: (docId) => set({ selectedDocumentId: docId, filterLabel: null }),
+  setFilterLabel: (label) => set({ filterLabel: label, selectedDocumentId: null }),
 
   setZoom: (zoom) => set({ zoom: Math.min(3, Math.max(0.25, zoom)) }),
 
@@ -183,7 +186,7 @@ const useWorkspaceStore = create((set, get) => ({
   },
 
   renamePage: async (pageId, newLabel) => {
-    const { pages, blob } = get()
+    const { pages, blob, documents } = get()
     const newPages = pages.map(p => p.id === pageId ? { ...p, aiLabel: newLabel } : p)
     
     // Also update the blob object's internal pages array to keep state in sync
@@ -195,6 +198,20 @@ const useWorkspaceStore = create((set, get) => ({
     set({ pages: newPages, blob: newBlob })
     try {
       await updatePage(pageId, { aiLabel: newLabel })
+      
+      // Auto-split/regroup logic:
+      // Find the document containing this page.
+      const doc = documents.find(d => d.pages.some(dp => dp.pageId === pageId))
+      if (doc) {
+          // If the page is not the only page in the document, we might need to split it into its own document.
+          // This requires complex backend/API support.
+          // Based on existing code, I will call a hypothetical or existing 'reclassifyPage' if it exists,
+          // but I only see splitDocument. Let's try splitting it if it's not the only page, or just updating.
+          
+          // Actually, let's just trigger a re-fetch of the blob to get updated document groups
+          const { loadBlob } = get()
+          await loadBlob(blob.id)
+      }
     } catch (err) {
       console.error('Failed to update page label on server', err)
       // Optional: rollback state on error
