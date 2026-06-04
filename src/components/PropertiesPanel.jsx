@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { fetchConfiguredDocTypes } from '../api/client'
 import useWorkspaceStore from '../store/workspaceStore'
 import { CheckCircle2, ChevronDown, FileText, Layers, Merge, AlertTriangle, List, Check, Square, FileJson, X, Download } from 'lucide-react'
@@ -204,10 +205,12 @@ export default function PropertiesPanel() {
             <AlertTriangle className="w-5 h-5 text-red-500 shrink-0" />
             <div>
               <p className="text-[10px] font-bold text-red-600 dark:text-red-600 dark:text-red-400 uppercase tracking-widest">Attention Required</p>
-              <p className="text-xs text-red-700 dark:text-red-200/70 mt-0.5">
-                {page.confidenceScore < 0.85 ? 'Low AI confidence.' : ''} 
-                {page.anomalyFlags && JSON.parse(page.anomalyFlags).join(', ')} detected.
-              </p>
+              <div className="text-xs text-red-700 dark:text-red-200/70 mt-1 space-y-1">
+                {page.confidenceScore < 0.85 && <p>• Low AI confidence ({Math.round(page.confidenceScore * 100)}%).</p>}
+                {page.anomalyFlags && JSON.parse(page.anomalyFlags).map((flag, idx) => (
+                    <p key={idx}>• {flag}</p>
+                ))}
+              </div>
             </div>
           </div>
         )}
@@ -399,9 +402,9 @@ export default function PropertiesPanel() {
       </div>
 
       {/* Extracted Values Modal */}
-      {showRawJson && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md">
-          <div className="bg-surface border border-main rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl animate-in zoom-in duration-200">
+      {showRawJson && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md">
+          <div className="bg-surface border border-main rounded-3xl w-full max-w-4xl max-h-[85vh] flex flex-col shadow-2xl shadow-black/50 animate-in fade-in zoom-in duration-200">
             <div className="flex items-center justify-between px-6 py-4 border-b border-main shrink-0">
               <div className="flex items-center gap-2">
                 <FileJson className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
@@ -430,27 +433,26 @@ export default function PropertiesPanel() {
                      <div 
                        key={k} 
                        className={`
-                         flex items-start gap-3 p-4 rounded-xl transition-all border group
+                         flex items-start gap-4 p-5 rounded-2xl transition-all border group
                          ${checkedFields.has(k) 
-                           ? 'bg-emerald-500/10 border-emerald-500/30' 
-                           : 'bg-main border-main hover:border-indigo-500/30'}
+                           ? 'bg-emerald-500/5 border-emerald-500/20' 
+                           : 'bg-white/5 border-white/5 hover:border-indigo-500/20'}
                        `}
                      >
                         <button 
                           onClick={(e) => { e.stopPropagation(); toggleCheck(k); }}
                           className={`
-                            mt-1 w-6 h-6 rounded-md border flex items-center justify-center transition-all shrink-0
-                            ${checkedFields.has(k) ? 'bg-emerald-500 border-emerald-500 text-main' : 'dark:border-white/20 border-black/20 text-transparent hover:border-white/40'}
+                            mt-0.5 w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all shrink-0
+                            ${checkedFields.has(k) ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-white/10 text-transparent hover:border-white/30'}
                           `}
                         >
-                          <Check className="w-4 h-4" />
+                          <Check className="w-3.5 h-3.5" />
                         </button>
                         <div className="flex-1 min-w-0">
-                          <div className="flex justify-between items-start">
-                            <p className={`text-xs font-bold uppercase tracking-wide truncate mb-1 ${checkedFields.has(k) ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted'}`}>
+                          <div className="flex justify-between items-center mb-2">
+                            <p className={`text-[10px] font-bold uppercase tracking-widest truncate ${checkedFields.has(k) ? 'text-emerald-500' : 'text-muted'}`}>
                               {k.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
                             </p>
-                            {checkedFields.has(k) && <Check className="w-4 h-4 text-emerald-500 animate-in zoom-in" />}
                           </div>
                           <input 
                             value={v}
@@ -459,8 +461,8 @@ export default function PropertiesPanel() {
                                setFields(prev => ({ ...prev, [k]: newVal }));
                             }}
                             className={`
-                              w-full bg-surface-700/80 border border-main rounded-lg px-3 py-2 text-sm font-mono mt-1 outline-none focus:border-indigo-500/50 transition-all
-                              ${checkedFields.has(k) ? 'text-emerald-100' : 'text-indigo-600 dark:text-indigo-200'}
+                              w-full bg-black/20 border border-white/5 rounded-xl px-4 py-2.5 text-sm font-mono outline-none focus:border-indigo-500/50 focus:bg-black/40 transition-all
+                              ${checkedFields.has(k) ? 'text-emerald-100' : 'text-indigo-200'}
                             `}
                           />
                         </div>
@@ -541,7 +543,8 @@ export default function PropertiesPanel() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )
