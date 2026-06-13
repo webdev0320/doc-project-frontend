@@ -16,9 +16,18 @@ api.interceptors.request.use(config => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Only redirect to login if the backend explicitly states the token is invalid/missing
+    // or if the error is a 401. This prevents logout on DB connectivity issues.
     if (error.response && error.response.status === 401) {
-      localStorage.removeItem('token')
-      window.location.href = '/login'
+      console.log('401 detected, checking if it is an auth error...');
+      // If the backend returns a specific auth message, logout.
+      // Otherwise, assume it might be a transient DB connection issue.
+      if (error.response.data?.message?.toLowerCase().includes('authentication') || 
+          error.response.data?.message?.toLowerCase().includes('token')) {
+        console.log('Authentication error, logging out.');
+        localStorage.removeItem('token')
+        window.location.href = '/login'
+      }
     }
     return Promise.reject(error)
   }
