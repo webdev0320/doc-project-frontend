@@ -37,12 +37,13 @@ export default function DashboardPage() {
   useEffect(() => {
     loadBlobs()
     loadInboundFiles()
+    // Poll faster (5s) when there are active uploads, slower (30s) otherwise
     const interval = setInterval(() => {
       loadBlobs()
       loadInboundFiles()
-    }, 60000)
+    }, uploads.some(u => u.status === 'uploading' || u.status === 'processing') ? 5000 : 30000)
     return () => clearInterval(interval)
-  }, [])
+  }, [uploads])
 
   const loadInboundFiles = async () => {
     try {
@@ -85,10 +86,13 @@ export default function DashboardPage() {
         const { data } = await uploadBlob(file, (p) => {
           setUploads(curr => curr.map(u => u.id === trackerId ? { ...u, progress: p } : u))
         })
-        setUploads(curr => curr.map(u => u.id === trackerId ? { ...u, status: 'done', message: 'Sent to SFTP' } : u))
+        const blobId = data?.data?.blobId || data?.blobId
+        setUploads(curr => curr.map(u => u.id === trackerId ? { ...u, status: 'processing', blobId, message: 'Processing...' } : u))
+        // Immediately refresh blob list so the new PROCESSING blob appears
+        loadBlobs()
         loadInboundFiles()
       } catch (e) {
-        setUploads(curr => curr.map(u => u.id === trackerId ? { ...u, status: 'error', error: e.message } : u))
+        setUploads(curr => curr.map(u => u.id === trackerId ? { ...u, status: 'error', error: e.response?.data?.message || e.message } : u))
       }
     }
   }
@@ -592,26 +596,30 @@ export default function DashboardPage() {
 
 function UploadCard({ upload, onOpen, onCancel }) {
   const isDone = upload.status === 'done'
+  const isProcessing = upload.status === 'processing'
   const isError = upload.status === 'error'
+  const showOpen = upload.blobId && (isDone || isProcessing)
 
   return (
     <div className={`
       p-4 rounded-2xl border transition-all duration-300
-      ${isDone ? 'bg-green-500/5 border-green-500/20' : isError ? 'bg-red-500/5 border-red-500/20' : 'bg-surface border-main'}
+      ${isDone ? 'bg-green-500/5 border-green-500/20' : isError ? 'bg-red-500/5 border-red-500/20' : isProcessing ? 'bg-indigo-500/5 border-indigo-500/20' : 'bg-surface border-main'}
     `}>
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-3">
-          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isDone ? 'bg-green-500/20 text-green-400' : 'bg-indigo-500/20 text-indigo-400'}`}>
-            {isDone ? <Check className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
+          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isDone ? 'bg-green-500/20 text-green-400' : isProcessing ? 'bg-indigo-500/20 text-indigo-400' : 'bg-indigo-500/20 text-indigo-400'}`}>
+            {isDone ? <Check className="w-4 h-4" /> : isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
           </div>
           <div className="min-w-0">
             <p className="text-xs font-semibold dark:text-white text-slate-900 truncate w-40">{upload.name}</p>
-            <p className="text-[10px] text-muted">{isDone ? 'Sent to SFTP Inbound' : 'Uploading...'}</p>
+            <p className="text-[10px] text-muted">
+              {isDone ? 'Done' : isProcessing ? 'AI Exploding...' : 'Uploading...'}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {isDone && upload.blobId && (
-            <button onClick={onOpen} className="p-1.5 rounded-lg bg-green-500/20 text-green-400 hover:bg-green-500/30">
+          {showOpen && (
+            <button onClick={onOpen} className="p-1.5 rounded-lg bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30">
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           )}
@@ -624,7 +632,7 @@ function UploadCard({ upload, onOpen, onCancel }) {
         </div>
       </div>
 
-      {!isDone && !isError && (
+      {!isDone && !isError && !isProcessing && (
         <div className="space-y-2">
           <div className="flex items-center justify-between text-[10px] text-muted">
             <span>Progress</span>
@@ -633,6 +641,12 @@ function UploadCard({ upload, onOpen, onCancel }) {
           <div className="h-1 dark:bg-white/5 bg-black/5 rounded-full overflow-hidden">
             <div className="h-full bg-indigo-500 transition-all duration-300" style={{ width: `${upload.progress}%` }} />
           </div>
+        </div>
+      )}
+
+      {isProcessing && (
+        <div className="h-1 dark:bg-white/5 bg-black/5 rounded-full overflow-hidden">
+          <div className="h-full bg-indigo-500 animate-pulse w-full" />
         </div>
       )}
 
