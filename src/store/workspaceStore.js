@@ -253,17 +253,22 @@ const useWorkspaceStore = create((set, get) => ({
       })
     }
 
-    // Poll until the engine marks the blob COMPLETED again
-    const poll = async (attempts = 0) => {
-      if (attempts > 40) return // max ~2 min
-      const { data } = await fetchBlob(blob.id)
-      if (data.data.status === 'COMPLETED') {
-        await loadBlob(blob.id)
-      } else {
-        setTimeout(() => poll(attempts + 1), 3000)
-      }
-    }
-    poll()
+    // Poll until the engine marks the blob COMPLETED again.
+    // Returns a promise so the caller can properly await completion.
+    const poll = (attempts = 0) => new Promise((resolve, reject) => {
+      if (attempts > 40) return resolve() // max ~2 min, give up gracefully
+      fetchBlob(blob.id)
+        .then(({ data }) => {
+          if (data.data.status === 'COMPLETED' || data.data.status === 'IN-PROGRESS') {
+            loadBlob(blob.id).then(resolve).catch(reject)
+          } else {
+            setTimeout(() => poll(attempts + 1).then(resolve).catch(reject), 3000)
+          }
+        })
+        .catch(reject)
+    })
+
+    await poll()
   },
 }))
 

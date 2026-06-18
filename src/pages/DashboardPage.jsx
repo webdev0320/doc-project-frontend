@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { uploadBlob, fetchBlobs, fetchInboundFiles, deleteBlob } from '../api/client'
+import { uploadBlob, fetchBlobs, fetchInboundFiles, deleteBlob, fetchBlob } from '../api/client'
 import {
   CloudUpload, FileText, Loader2, CheckCircle2,
   AlertCircle, Search, Calendar, Filter, ArrowRight, Settings,
@@ -87,10 +87,43 @@ export default function DashboardPage() {
           setUploads(curr => curr.map(u => u.id === trackerId ? { ...u, progress: p } : u))
         })
         const blobId = data?.data?.blobId || data?.blobId
-        setUploads(curr => curr.map(u => u.id === trackerId ? { ...u, status: 'processing', blobId, message: 'Processing...' } : u))
-        // Immediately refresh blob list so the new PROCESSING blob appears
+
+        // Mark as processing immediately so it appears in the Live Monitors section
+        setUploads(curr => curr.map(u => u.id === trackerId ? { ...u, status: 'processing', blobId } : u))
         loadBlobs()
         loadInboundFiles()
+
+        // Poll the actual blob status so the UploadCard correctly reflects
+        // success OR failure — prevents 'processing' card + 'FAILED' table row
+        // appearing simultaneously (the "failed and success" bug).
+        const pollBlobStatus = async (attempts = 0) => {
+          if (attempts > 40) return // max ~2.5 min, give up silently
+          try {
+            const { data: blobData } = await fetchBlob(blobId)
+            const status = blobData?.data?.status
+            if (status === 'COMPLETED' || status === 'IN-PROGRESS') {
+              setUploads(curr => curr.map(u => u.id === trackerId ? { ...u, status: 'done' } : u))
+              loadBlobs()
+            } else if (status === 'FAILED') {
+              setUploads(curr => curr.map(u => u.id === trackerId ? { ...u, status: 'error', error: 'Engine processing failed. Please re-upload.' } : u))
+              loadBlobs()
+            } else {
+              // Still PROCESSING / PENDING — keep polling
+              setTimeout(() => pollBlobStatus(attempts + 1), 4000)
+            }
+          } catch (pollErr) {
+            const httpStatus = pollErr?.response?.status
+            if (httpStatus === 404) {
+              // Blob not in DB (was never created or was cleaned up) — stop retrying
+              setUploads(curr => curr.map(u => u.id === trackerId ? { ...u, status: 'error', error: 'Upload failed: file not found on server.' } : u))
+            } else {
+              // Transient network error — retry
+              setTimeout(() => pollBlobStatus(attempts + 1), 4000)
+            }
+          }
+        }
+        pollBlobStatus()
+
       } catch (e) {
         setUploads(curr => curr.map(u => u.id === trackerId ? { ...u, status: 'error', error: e.response?.data?.message || e.message } : u))
       }
@@ -119,8 +152,15 @@ export default function DashboardPage() {
     try {
       await deleteBlob(id)
       setBlobs(curr => curr.filter(b => b.id !== id))
+      loadBlobs() // Re-sync with server
     } catch (err) {
-      alert('Delete failed: ' + err.message)
+      if (err?.response?.status === 404) {
+        // Blob already gone from DB \u2014 just remove it from the UI silently
+        setBlobs(curr => curr.filter(b => b.id !== id))
+        loadBlobs()
+      } else {
+        alert('Delete failed: ' + (err?.response?.data?.message || err.message))
+      }
     }
   }
 
@@ -441,6 +481,7 @@ export default function DashboardPage() {
                   <th className="px-6 py-4 w-10"><input type="checkbox" className="rounded bg-surface-700 border-main" /></th>
                   <th className="px-4 py-4">Batch Completed Date</th>
                   <th className="px-4 py-4">User</th>
+                  <th className="px-4 py-4">Filename</th>
                   <th className="px-4 py-4">Batch No.</th>
                   <th className="px-4 py-4">Received Date</th>
                   <th className="px-4 py-4">Available Date</th>
@@ -453,14 +494,14 @@ export default function DashboardPage() {
               <tbody className="divide-y divide-white/5">
                 {loadingBlobs ? (
                   <tr>
-                    <td colSpan="13" className="py-20 text-center">
+                    <td colSpan="11" className="py-20 text-center">
                       <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-indigo-500" />
                       <p className="text-sm text-muted">Fetching repository...</p>
                     </td>
                   </tr>
                 ) : filteredBlobs.length === 0 ? (
                   <tr>
-                    <td colSpan="13" className="py-20 text-center">
+                    <td colSpan="11" className="py-20 text-center">
                       <FileText className="w-12 h-12 text-slate-700 mx-auto mb-4" />
                       <p className="text-muted">No blobs found matching your search</p>
                     </td>
@@ -509,6 +550,9 @@ export default function DashboardPage() {
                               Assign to Me
                             </button>
                           )}
+                        </td>
+                        <td className="px-4 py-4 text-xs dark:text-slate-300 text-slate-700 font-medium max-w-[200px] truncate" title={blob.filename}>
+                          {blob.filename}
                         </td>
                         <td className="px-4 py-4 text-xs text-indigo-400 font-medium">{blob.batchNo || '-'}</td>
                         <td className="px-4 py-4 text-xs text-muted">
@@ -607,13 +651,13 @@ function UploadCard({ upload, onOpen, onCancel }) {
     `}>
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-3">
-          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isDone ? 'bg-green-500/20 text-green-400' : isProcessing ? 'bg-indigo-500/20 text-indigo-400' : 'bg-indigo-500/20 text-indigo-400'}`}>
-            {isDone ? <Check className="w-4 h-4" /> : isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isDone ? 'bg-green-500/20 text-green-400' : isError ? 'bg-red-500/20 text-red-400' : isProcessing ? 'bg-indigo-500/20 text-indigo-400' : 'bg-indigo-500/20 text-indigo-400'}`}>
+            {isDone ? <Check className="w-4 h-4" /> : isError ? <AlertCircle className="w-4 h-4" /> : isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
           </div>
           <div className="min-w-0">
             <p className="text-xs font-semibold dark:text-white text-slate-900 truncate w-40">{upload.name}</p>
             <p className="text-[10px] text-muted">
-              {isDone ? 'Done' : isProcessing ? 'AI Exploding...' : 'Uploading...'}
+              {isDone ? 'Done' : isError ? 'Upload Failed' : isProcessing ? 'AI Exploding...' : 'Uploading...'}
             </p>
           </div>
         </div>

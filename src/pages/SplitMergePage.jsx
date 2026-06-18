@@ -45,10 +45,13 @@ export default function SplitMergePage() {
 
     try {
       await addPages(files, (pct) => {
+        // Only update the progress bar during the byte-upload phase (0-99%).
+        // Do NOT set 'processing' here — addPages now awaits polling internally,
+        // so we transition directly from 'uploading' to 'done' when everything is ready.
         setUploadProgress(pct)
-        // Once upload hits 100%, engine takes over
         if (pct >= 100) setUploadState('processing')
       })
+      // addPages fully resolves only after the engine poll confirms completion.
       setUploadState('done')
       setTimeout(() => setUploadState('idle'), 2500)
     } catch (err) {

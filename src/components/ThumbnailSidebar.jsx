@@ -17,13 +17,21 @@ const S3_BASE = import.meta.env.VITE_STORAGE_BASE || 'https://doc-proj-backend.v
 export default function ThumbnailSidebar() {
   const {
     pages, selectedPageIds, selectPage, splitAfterPage,
-    rotatePage, staplePages, reorderPages, selectNext, selectPrev, filterLabel
+    rotatePage, staplePages, reorderPages, selectNext, selectPrev, filterLabel,
+    documents, selectedDocumentId
   } = useWorkspaceStore()
 
-  // Filter pages
-  const filteredPages = filterLabel 
-    ? pages.filter(p => (p.aiLabel || 'Unclassified') === filterLabel)
-    : pages
+  // Filter pages by label or selected document
+  let filteredPages = pages
+  if (filterLabel) {
+    filteredPages = pages.filter(p => (p.aiLabel || 'Unclassified') === filterLabel)
+  } else if (selectedDocumentId) {
+    const selectedDoc = documents.find(d => d.id === selectedDocumentId)
+    if (selectedDoc) {
+      const docPageIds = selectedDoc.pages.map(dp => dp.pageId)
+      filteredPages = pages.filter(p => docPageIds.includes(p.id))
+    }
+  }
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -64,15 +72,18 @@ export default function ThumbnailSidebar() {
 
       <div className="flex-1 overflow-y-auto scrollbar-hide px-2 pt-4">
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={pages.map(p => p.id)} strategy={verticalListSortingStrategy}>
+          <SortableContext items={filteredPages.map(p => p.id)} strategy={verticalListSortingStrategy}>
              <div className="space-y-4">
-               {filteredPages.map((page, index) => (
-                 <SortableItem 
-                   key={page.id} 
-                   page={page} 
-                   index={index} 
-                 />
-               ))}
+               {filteredPages.map((page) => {
+                 const absoluteIndex = pages.findIndex(p => p.id === page.id)
+                 return (
+                   <SortableItem 
+                     key={page.id} 
+                     page={page} 
+                     index={absoluteIndex} 
+                   />
+                 )
+               })}
              </div>
           </SortableContext>
         </DndContext>
