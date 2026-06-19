@@ -86,3 +86,7 @@ export const fetchStorageSettings = () => api.get('/admin/storage-settings')
 export const updateStorageSettings = (data) => api.put('/admin/storage-settings', data)
 
 export const exportBlob = (id) => api.post(`/export/${id}`)
+
+// Engine admin
+export const fetchEngineErrors = (limit = 50) => api.get(`/admin/engine/errors?limit=${limit}`)
+export const fetchFailedBlobs = (limit = 100) => api.get(`/admin/engine/failed-blobs?limit=${limit}`)

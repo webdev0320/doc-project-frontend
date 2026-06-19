@@ -16,6 +16,7 @@ import useAuthStore from '../store/authStore'
 export default function AdminPage() {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('users') // 'users' | 'doctypes' | 'checklists' | 'settings'
+  // allow 'processing' tab
 
   return (
     <div className="min-h-screen bg-surface-900 text-slate-200 flex">
@@ -56,6 +57,12 @@ export default function AdminPage() {
               label="Checklists"
             />
             <TabBtn
+              active={activeTab === 'processing'}
+              onClick={() => setActiveTab('processing')}
+              icon={<Server className="w-4 h-4" />}
+              label="Processing"
+            />
+            <TabBtn
                active={activeTab === 'settings'}
                onClick={() => setActiveTab('settings')}
                icon={<Settings className="w-4 h-4" />}
@@ -93,6 +100,7 @@ export default function AdminPage() {
           {activeTab === 'users' && <UserManagement />}
           {activeTab === 'doctypes' && <DocTypeManagement />}
           {activeTab === 'checklists' && <ChecklistManagement />}
+          {activeTab === 'processing' && <ProcessingAdmin />}
           {activeTab === 'settings' && <SystemSettings />}
         </div>
       </main>
@@ -385,6 +393,78 @@ function UserManagement() {
            </tbody>
          </table>
        </div>
+    </div>
+  )
+}
+
+function ProcessingAdmin() {
+  const [errors, setErrors] = useState([])
+  const [failed, setFailed] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => { load(); }, [])
+
+  const load = async () => {
+    setLoading(true)
+    try {
+      const [{ data: e }, { data: f }] = await Promise.all([fetchEngineErrors(50), fetchFailedBlobs(100)])
+      setErrors(e.data || [])
+      setFailed(f.data || [])
+    } catch (err) {
+      console.error(err)
+      setErrors([])
+      setFailed([])
+    } finally { setLoading(false) }
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-bold">Engine / Processing Insights</h2>
+        <button onClick={load} className="btn-ghost">Refresh</button>
+      </div>
+
+      <div className="grid grid-cols-2 gap-6">
+        <div className="p-4 rounded-xl bg-surface border border-main">
+          <h3 className="text-sm font-semibold mb-2">Recent Engine Audit Logs</h3>
+          {loading ? <p>Loading…</p> : (
+            <div className="space-y-2 max-h-96 overflow-auto">
+              {errors.map(e => (
+                <div key={e.id} className="p-2 rounded-md bg-white/3 border border-white/5 text-sm">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="font-semibold">{e.action}</div>
+                      <div className="text-xs text-muted">Blob: {e.blob?.filename || e.blobId} • {new Date(e.createdAt).toLocaleString()}</div>
+                    </div>
+                    <div className="text-xs text-muted">{e.performedBy}</div>
+                  </div>
+                  <pre className="text-xs mt-2 whitespace-pre-wrap break-words">{e.payload}</pre>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="p-4 rounded-xl bg-surface border border-main">
+          <h3 className="text-sm font-semibold mb-2">Failed Blobs (recent)</h3>
+          {loading ? <p>Loading…</p> : (
+            <div className="space-y-2 max-h-96 overflow-auto">
+              {failed.map(b => (
+                <div key={b.id} className="p-2 rounded-md bg-white/3 border border-white/5 text-sm">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="font-semibold">{b.filename}</div>
+                      <div className="text-xs text-muted">{b.s3Path}</div>
+                    </div>
+                    <div className="text-xs text-muted">Pages: {b._count.pages} • Docs: {b._count.documents}</div>
+                  </div>
+                  <div className="text-xs text-muted mt-2">Updated: {new Date(b.updatedAt).toLocaleString()}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

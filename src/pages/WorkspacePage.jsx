@@ -113,6 +113,15 @@ export default function WorkspacePage() {
 
   return (
     <div className="h-screen flex flex-col bg-main overflow-hidden relative">
+      {blob?.status === 'FAILED' && blob?.engineError && (
+        <div className="w-full bg-red-600 text-white p-3 text-sm flex items-center justify-between">
+          <div>
+            <strong>Engine processing failed:</strong>
+            <div className="text-xs mt-1 break-words">{blob.engineError.payload}</div>
+          </div>
+          <div className="text-xs opacity-80">{new Date(blob.engineError.createdAt).toLocaleString()}</div>
+        </div>
+      )}
       {/* Premium ambient background mesh */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] dark:from-indigo-500/10 from-indigo-500/5 dark:via-transparent via-transparent dark:to-transparent to-transparent pointer-events-none" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,_var(--tw-gradient-stops))] dark:from-blue-500/10 from-blue-500/5 dark:via-transparent via-transparent dark:to-transparent to-transparent pointer-events-none" />
