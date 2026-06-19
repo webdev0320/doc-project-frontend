@@ -105,7 +105,8 @@ export default function DashboardPage() {
               setUploads(curr => curr.map(u => u.id === trackerId ? { ...u, status: 'done' } : u))
               loadBlobs()
             } else if (status === 'FAILED') {
-              setUploads(curr => curr.map(u => u.id === trackerId ? { ...u, status: 'error', error: 'Engine processing failed. Please re-upload.' } : u))
+              const engineErr = blobData?.data?.engineError?.payload || blobData?.data?.auditLogs?.[0]?.payload
+              setUploads(curr => curr.map(u => u.id === trackerId ? { ...u, status: 'error', error: engineErr || 'Engine processing failed. Please re-upload.' } : u))
               loadBlobs()
             } else {
               // Still PROCESSING / PENDING — keep polling
