@@ -4,6 +4,7 @@ import {
   fetchConfiguredDocTypes, createConfiguredDocType, updateConfiguredDocType, deleteConfiguredDocType,
   fetchStorageSettings, updateStorageSettings,
   fetchChecklists, createChecklist, deleteChecklist
+  , fetchEngineErrors, fetchFailedBlobs
 } from '../api/client'
 import {
   Users, FileStack, ShieldAlert, Plus, Trash2,
