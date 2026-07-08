@@ -111,13 +111,22 @@ export default function WorkspacePage() {
     )
   }
 
+  const rawErr = blob?.engineError?.payload;
+  let cleanErr = rawErr;
+  if (rawErr) {
+    try {
+      const parsed = JSON.parse(rawErr);
+      cleanErr = parsed.error?.message || parsed.message || rawErr;
+    } catch (e) {}
+  }
+
   return (
     <div className="h-screen flex flex-col bg-main overflow-hidden relative">
       {blob?.status === 'FAILED' && blob?.engineError && (
         <div className="w-full bg-red-600 text-white p-3 text-sm flex items-center justify-between">
           <div>
             <strong>Engine processing failed:</strong>
-            <div className="text-xs mt-1 break-words">{blob.engineError.payload}</div>
+            <div className="text-xs mt-1 break-words">{cleanErr}</div>
           </div>
           <div className="text-xs opacity-80">{new Date(blob.engineError.createdAt).toLocaleString()}</div>
         </div>

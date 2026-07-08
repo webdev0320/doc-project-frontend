@@ -20,6 +20,17 @@ const useWorkspaceStore = create((set, get) => ({
     set({ loading: true, error: null })
     try {
       const { data } = await fetchBlob(blobId)
+      if (data?.data?.status === 'FAILED') {
+        const rawErr = data.data.engineError?.payload
+        let engineErr = rawErr;
+        if (rawErr) {
+          try {
+            const parsed = JSON.parse(rawErr);
+            engineErr = parsed.error?.message || parsed.message || rawErr;
+          } catch (e) {}
+        }
+        console.error(`[Workspace Load Error] Engine processing failed for blob ${blobId}:`, engineErr || 'No detailed error message found.', data.data)
+      }
       const firstPageId = data.data.pages[0]?.id ?? null
       set({
         blob: data.data,
@@ -32,6 +43,7 @@ const useWorkspaceStore = create((set, get) => ({
         filterLabel: null, // Reset filter
       })
     } catch (e) {
+      console.error(`[Workspace Load Error] Failed to fetch/load blob ${blobId}:`, e);
       set({ error: e.message, loading: false })
     }
   },
@@ -256,11 +268,25 @@ const useWorkspaceStore = create((set, get) => ({
     // Poll until the engine marks the blob COMPLETED again.
     // Returns a promise so the caller can properly await completion.
     const poll = (attempts = 0) => new Promise((resolve, reject) => {
-      if (attempts > 40) return resolve() // max ~2 min, give up gracefully
+      if (attempts > 40) {
+        console.error(`[Workspace Error] Polling timed out after 40 attempts for blob ${blob.id}.`);
+        return resolve()
+      }
       fetchBlob(blob.id)
         .then(({ data }) => {
           if (data.data.status === 'COMPLETED' || data.data.status === 'IN-PROGRESS') {
             loadBlob(blob.id).then(resolve).catch(reject)
+          } else if (data.data.status === 'FAILED') {
+            const rawErr = data.data.engineError?.payload
+            let engineErr = rawErr;
+            if (rawErr) {
+              try {
+                const parsed = JSON.parse(rawErr);
+                engineErr = parsed.error?.message || parsed.message || rawErr;
+              } catch (e) {}
+            }
+            console.error(`[Workspace Error] Engine processing failed during addPages for blob ${blob.id}:`, engineErr || 'Engine processing failed.', data.data)
+            reject(new Error(engineErr || 'Engine processing failed.'))
           } else {
             setTimeout(() => poll(attempts + 1).then(resolve).catch(reject), 3000)
           }

@@ -86,6 +86,8 @@ export default function DashboardPage() {
         const { data } = await uploadBlob(file, (p) => {
           setUploads(curr => curr.map(u => u.id === trackerId ? { ...u, progress: p } : u))
         })
+
+
         const blobId = data?.data?.blobId || data?.blobId
 
         // Mark as processing immediately so it appears in the Live Monitors section
@@ -97,15 +99,29 @@ export default function DashboardPage() {
         // success OR failure — prevents 'processing' card + 'FAILED' table row
         // appearing simultaneously (the "failed and success" bug).
         const pollBlobStatus = async (attempts = 0) => {
-          if (attempts > 40) return // max ~2.5 min, give up silently
+          if (attempts > 40) {
+            console.error(`[Upload Error] Polling timed out after 40 attempts for blob ${blobId}.`);
+            return
+          }
           try {
             const { data: blobData } = await fetchBlob(blobId)
             const status = blobData?.data?.status
+            console.log(blobData);
             if (status === 'COMPLETED' || status === 'IN-PROGRESS') {
               setUploads(curr => curr.map(u => u.id === trackerId ? { ...u, status: 'done' } : u))
               loadBlobs()
             } else if (status === 'FAILED') {
-              const engineErr = blobData?.data?.engineError?.payload || blobData?.data?.auditLogs?.[0]?.payload
+              const rawErr = blobData?.data?.engineError?.payload || blobData?.data?.auditLogs?.[0]?.payload
+              let engineErr = rawErr;
+              if (rawErr) {
+                try {
+                  const parsed = JSON.parse(rawErr);
+                  engineErr = parsed.error?.message || parsed.message || rawErr;
+                } catch (e) {
+                  // Keep original string
+                }
+              }
+              console.error(`[Engine Error] Processing failed for blob ${blobId}:`, engineErr || 'No error payload found.', blobData?.data);
               setUploads(curr => curr.map(u => u.id === trackerId ? { ...u, status: 'error', error: engineErr || 'Engine processing failed. Please re-upload.' } : u))
               loadBlobs()
             } else {
@@ -116,9 +132,11 @@ export default function DashboardPage() {
             const httpStatus = pollErr?.response?.status
             if (httpStatus === 404) {
               // Blob not in DB (was never created or was cleaned up) — stop retrying
+              console.error(`[Upload Error] Blob ${blobId} not found on server (404).`, pollErr);
               setUploads(curr => curr.map(u => u.id === trackerId ? { ...u, status: 'error', error: 'Upload failed: file not found on server.' } : u))
             } else {
               // Transient network error — retry
+              console.warn(`[Upload Warning] Transient network error polling status for blob ${blobId} (attempt ${attempts + 1}):`, pollErr);
               setTimeout(() => pollBlobStatus(attempts + 1), 4000)
             }
           }
@@ -126,6 +144,7 @@ export default function DashboardPage() {
         pollBlobStatus()
 
       } catch (e) {
+        console.error(`[Upload Error] Failed to upload file ${file.name}:`, e);
         setUploads(curr => curr.map(u => u.id === trackerId ? { ...u, status: 'error', error: e.response?.data?.message || e.message } : u))
       }
     }
