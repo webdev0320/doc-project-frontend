@@ -268,8 +268,8 @@ const useWorkspaceStore = create((set, get) => ({
     // Poll until the engine marks the blob COMPLETED again.
     // Returns a promise so the caller can properly await completion.
     const poll = (attempts = 0) => new Promise((resolve, reject) => {
-      if (attempts > 40) {
-        console.error(`[Workspace Error] Polling timed out after 40 attempts for blob ${blob.id}.`);
+      if (attempts > 300) {
+        console.error(`[Workspace Error] Polling timed out after 300 attempts for blob ${blob.id}.`);
         return resolve()
       }
       fetchBlob(blob.id)

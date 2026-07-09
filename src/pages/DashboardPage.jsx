@@ -48,7 +48,9 @@ export default function DashboardPage() {
   const loadInboundFiles = async () => {
     try {
       const { data } = await fetchInboundFiles()
-      setInboundFiles(data.data)
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-/i;
+      const actualInbound = (data.data || []).filter(file => !uuidRegex.test(file.name));
+      setInboundFiles(actualInbound)
     } catch (e) {
       console.error('Failed to load inbound files', e)
     }
@@ -99,8 +101,8 @@ export default function DashboardPage() {
         // success OR failure — prevents 'processing' card + 'FAILED' table row
         // appearing simultaneously (the "failed and success" bug).
         const pollBlobStatus = async (attempts = 0) => {
-          if (attempts > 40) {
-            console.error(`[Upload Error] Polling timed out after 40 attempts for blob ${blobId}.`);
+          if (attempts > 300) {
+            console.error(`[Upload Error] Polling timed out after 300 attempts for blob ${blobId}.`);
             return
           }
           try {

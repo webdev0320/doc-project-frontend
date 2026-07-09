@@ -13,7 +13,7 @@ import useWorkspaceStore from '../store/workspaceStore'
 import { Scissors, Flag, RotateCw, GripVertical, AlertTriangle, Trash2, MoreVertical, Eye, Download, X, RefreshCw, FileEdit, LayoutGrid, ChevronLeft } from 'lucide-react'
 
 const S3_BASE = import.meta.env.VITE_STORAGE_BASE || 'https://doc-proj-backend.vercel.app/api/storage/pages'
-
+console.log(S3_BASE);
 export default function ThumbnailSidebar() {
   const {
     pages, selectedPageIds, selectPage, splitAfterPage,
