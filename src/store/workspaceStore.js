@@ -266,12 +266,19 @@ const useWorkspaceStore = create((set, get) => ({
     }
 
     // Poll until the engine marks the blob COMPLETED again.
-    // Returns a promise so the caller can properly await completion.
+    // Time-based deadline (60 min) instead of attempt count, so large files
+    // (250+ pages) don't time out while the engine is still working.
+    const POLL_DEADLINE_MS = 60 * 60 * 1000; // 60 minutes
+    const pollStart = Date.now();
+
     const poll = (attempts = 0) => new Promise((resolve, reject) => {
-      if (attempts > 300) {
-        console.error(`[Workspace Error] Polling timed out after 300 attempts for blob ${blob.id}.`);
-        return resolve()
+      const elapsed = Date.now() - pollStart;
+      if (elapsed > POLL_DEADLINE_MS) {
+        console.error(`[Workspace Error] Polling timed out after 60 minutes for blob ${blob.id}.`);
+        return resolve();
       }
+      // Progressive backoff: 5s → 10s → 15s (cap at 15s after 20 polls)
+      const delay = Math.min(5000 + attempts * 500, 15000);
       fetchBlob(blob.id)
         .then(({ data }) => {
           if (data.data.status === 'COMPLETED' || data.data.status === 'IN-PROGRESS') {
@@ -288,7 +295,8 @@ const useWorkspaceStore = create((set, get) => ({
             console.error(`[Workspace Error] Engine processing failed during addPages for blob ${blob.id}:`, engineErr || 'Engine processing failed.', data.data)
             reject(new Error(engineErr || 'Engine processing failed.'))
           } else {
-            setTimeout(() => poll(attempts + 1).then(resolve).catch(reject), 3000)
+            console.log(`[Workspace] Still processing blob ${blob.id}. Elapsed: ${Math.round(elapsed / 1000)}s. Next poll in ${delay / 1000}s.`);
+            setTimeout(() => poll(attempts + 1).then(resolve).catch(reject), delay)
           }
         })
         .catch(reject)

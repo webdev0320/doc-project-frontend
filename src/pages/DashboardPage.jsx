@@ -100,11 +100,17 @@ export default function DashboardPage() {
         // Poll the actual blob status so the UploadCard correctly reflects
         // success OR failure — prevents 'processing' card + 'FAILED' table row
         // appearing simultaneously (the "failed and success" bug).
+        // Time-based deadline so large files (250+ pages) don't time out early.
+        const POLL_DEADLINE_MS = 60 * 60 * 1000; // 60 minutes
+        const pollStart = Date.now();
         const pollBlobStatus = async (attempts = 0) => {
-          if (attempts > 300) {
-            console.error(`[Upload Error] Polling timed out after 300 attempts for blob ${blobId}.`);
+          const elapsed = Date.now() - pollStart;
+          if (elapsed > POLL_DEADLINE_MS) {
+            console.error(`[Upload Error] Polling timed out after 60 minutes for blob ${blobId}.`);
             return
           }
+          // Progressive backoff: 5s → 10s → 15s (cap after 20 polls)
+          const delay = Math.min(5000 + attempts * 500, 15000);
           try {
             const { data: blobData } = await fetchBlob(blobId)
             const status = blobData?.data?.status
@@ -128,7 +134,11 @@ export default function DashboardPage() {
               loadBlobs()
             } else {
               // Still PROCESSING / PENDING — keep polling
-              setTimeout(() => pollBlobStatus(attempts + 1), 4000)
+              // Update pageCount counter so the card shows live extraction progress
+              const livePageCount = blobData?.data?.pageCount || 0;
+              console.log(`[Upload] Still processing blob ${blobId}. Elapsed: ${Math.round(elapsed / 1000)}s. Next poll in ${delay / 1000}s.`);
+              setUploads(curr => curr.map(u => u.id === trackerId ? { ...u, pageCount: livePageCount, blobStatus: status } : u));
+              setTimeout(() => pollBlobStatus(attempts + 1), delay)
             }
           } catch (pollErr) {
             const httpStatus = pollErr?.response?.status
@@ -139,7 +149,7 @@ export default function DashboardPage() {
             } else {
               // Transient network error — retry
               console.warn(`[Upload Warning] Transient network error polling status for blob ${blobId} (attempt ${attempts + 1}):`, pollErr);
-              setTimeout(() => pollBlobStatus(attempts + 1), 4000)
+              setTimeout(() => pollBlobStatus(attempts + 1), delay)
             }
           }
         }
@@ -665,6 +675,15 @@ function UploadCard({ upload, onOpen, onCancel }) {
   const isProcessing = upload.status === 'processing'
   const isError = upload.status === 'error'
   const showOpen = upload.blobId && (isDone || isProcessing)
+  const pageCount = upload.pageCount || 0
+  const blobStatus = upload.blobStatus || ''
+
+  // Determine processing sub-label from backend blob status
+  const processingLabel = (() => {
+    if (blobStatus === 'EXPLODED') return `${pageCount} pages exploded — OCR in progress...`
+    if (pageCount > 0) return `${pageCount} pages extracted so far...`
+    return 'AI Exploding...'
+  })()
 
   return (
     <div className={`
@@ -679,7 +698,7 @@ function UploadCard({ upload, onOpen, onCancel }) {
           <div className="min-w-0">
             <p className="text-xs font-semibold dark:text-white text-slate-900 truncate w-40">{upload.name}</p>
             <p className="text-[10px] text-muted">
-              {isDone ? 'Done' : isError ? 'Upload Failed' : isProcessing ? 'AI Exploding...' : 'Uploading...'}
+              {isDone ? `Done — ${pageCount > 0 ? `${pageCount} pages` : ''}` : isError ? 'Upload Failed' : isProcessing ? processingLabel : 'Uploading...'}
             </p>
           </div>
         </div>
@@ -711,8 +730,16 @@ function UploadCard({ upload, onOpen, onCancel }) {
       )}
 
       {isProcessing && (
-        <div className="h-1 dark:bg-white/5 bg-black/5 rounded-full overflow-hidden">
-          <div className="h-full bg-indigo-500 animate-pulse w-full" />
+        <div className="space-y-1.5">
+          <div className="h-1 dark:bg-white/5 bg-black/5 rounded-full overflow-hidden">
+            <div className="h-full bg-indigo-500 animate-pulse w-full" />
+          </div>
+          {pageCount > 0 && (
+            <div className="flex items-center gap-1.5 text-[10px] text-indigo-400 font-mono">
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
+              <span>{pageCount} {blobStatus === 'EXPLODED' ? 'pages exploded' : 'pages extracted'}</span>
+            </div>
+          )}
         </div>
       )}
 
