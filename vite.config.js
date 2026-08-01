@@ -7,7 +7,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'https://doc-proj-backend.vercel.app/',
+        target: 'http://localhost:3000',
         changeOrigin: true,
       },
     },

@@ -98,6 +98,47 @@ export default function PropertiesPanel() {
   const filteredFields = Object.entries(fields)
     .filter(([k, v]) => k.toLowerCase().includes(searchQuery.toLowerCase()) || String(v).toLowerCase().includes(searchQuery.toLowerCase()))
 
+  // Map each flattened field key -> page number(s) where the value was extracted
+  const fieldPageMap = (() => {
+    const map = {}
+    const record = (key, pageNum) => {
+      if (!map[key]) map[key] = []
+      if (!map[key].includes(pageNum)) map[key].push(pageNum)
+    }
+
+    if (doc) {
+      const docPagesSorted = [...doc.pages].sort((a, b) => a.order - b.order)
+      docPagesSorted.forEach(dp => {
+        if (!dp.page?.extractedData) return
+        try {
+          const data = typeof dp.page.extractedData === 'string'
+            ? JSON.parse(dp.page.extractedData)
+            : dp.page.extractedData
+
+          const pageNum = (pages.find(p => p.id === dp.pageId)?.originalIndex ?? 0) + 1
+
+          const flatten = (obj, prefix = '') => {
+            return Object.keys(obj).reduce((r, k) => {
+              const key = prefix ? `${prefix}_${k}` : k
+              if (typeof obj[k] === 'object' && obj[k] !== null && !Array.isArray(obj[k])) {
+                Object.assign(r, flatten(obj[k], key))
+              } else {
+                r[key] = obj[k]
+              }
+              return r
+            }, {})
+          }
+
+          Object.keys(flatten(data)).forEach(key => record(key, pageNum))
+        } catch (e) {}
+      })
+    } else if (page) {
+      const pageNum = (page.originalIndex ?? pages.findIndex(p => p.id === page.id)) + 1
+      Object.keys(fields).forEach(key => record(key, pageNum))
+    }
+    return map
+  })()
+
 
   const toggleCheck = (key) => {
     const next = new Set(checkedFields)
@@ -168,10 +209,14 @@ export default function PropertiesPanel() {
       ['Extracted Value Page', (firstPage?.originalIndex ?? 0) + 1],
     ]
 
-    const fieldEntries = Object.entries(fields).map(([k, v]) => [k, v])
+    const fieldEntries = Object.entries(fields).map(([k, v]) => [
+      k,
+      v,
+      fieldPageMap[k]?.length ? [...fieldPageMap[k]].sort((a, b) => a - b).join(', ') : 'Manual'
+    ])
     
     const rows = [
-      ['Field', 'Value'],
+      ['Field', 'Value', 'Page'],
       ...metadata,
       ...fieldEntries
     ]
@@ -449,10 +494,11 @@ export default function PropertiesPanel() {
                           <Check className="w-3.5 h-3.5" />
                         </button>
                         <div className="flex-1 min-w-0">
-                          <div className="flex justify-between items-center mb-2">
+                          <div className="flex justify-between items-center gap-2 mb-2">
                             <p className={`text-[10px] font-bold uppercase tracking-widest truncate ${checkedFields.has(k) ? 'text-emerald-500' : 'text-muted'}`}>
                               {k.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
                             </p>
+                            <FieldPageBadge pageNumbers={fieldPageMap[k]} />
                           </div>
                           <input 
                             value={v}
@@ -523,11 +569,13 @@ export default function PropertiesPanel() {
                 onClick={() => {
                   const keys = Object.keys(fields);
                   if (keys.length === 0) return;
-                  let csvContent = "data:text/csv;charset=utf-8,Field,Value\n";
+                  let csvContent = "data:text/csv;charset=utf-8,Field,Value,Page\n";
                   keys.forEach(k => {
                     const escapedKey = `"${k.replace(/"/g, '""')}"`;
                     const escapedValue = `"${String(fields[k] || '').replace(/"/g, '""')}"`;
-                    csvContent += `${escapedKey},${escapedValue}\n`;
+                    const pageRef = fieldPageMap[k]?.length ? [...fieldPageMap[k]].sort((a, b) => a - b).join(', ') : 'Manual';
+                    const escapedPage = `"${String(pageRef).replace(/"/g, '""')}"`;
+                    csvContent += `${escapedKey},${escapedValue},${escapedPage}\n`;
                   });
                   const encodedUri = encodeURI(csvContent);
                   const link = document.createElement("a");
@@ -574,4 +622,20 @@ function StatusBadge({ status }) {
   if (status === 'HUMAN_VERIFIED') return <span className="badge-verified">Verified</span>
   if (status === 'AI_CLASSIFIED') return <span className="badge-ai">AI</span>
   return null
+}
+
+function FieldPageBadge({ pageNumbers }) {
+  if (!pageNumbers || pageNumbers.length === 0) {
+    return (
+      <span className="shrink-0 text-[9px] font-bold uppercase tracking-widest text-slate-600 bg-black/20 px-2 py-0.5 rounded-md">
+        Manual
+      </span>
+    )
+  }
+  return (
+    <span className="shrink-0 inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded-md">
+      <FileText className="w-2.5 h-2.5" />
+      Page {[...pageNumbers].sort((a, b) => a - b).join(', ')}
+    </span>
+  )
 }

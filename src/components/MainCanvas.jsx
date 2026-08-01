@@ -1,17 +1,23 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch'
 import useWorkspaceStore from '../store/workspaceStore'
 import {
-  ZoomIn, ZoomOut, RotateCcw, Maximize2,
+  ZoomIn, ZoomOut, RotateCcw,
   ChevronLeft, ChevronRight, Download, MousePointer2,
   Hand
 } from 'lucide-react'
 
 const S3_BASE = import.meta.env.VITE_STORAGE_BASE || 'https://doc-proj-backend.vercel.app/api/storage/pages'
 
+const imageUrl = (s3Path, retry = 0) => {
+  const baseUrl = `${S3_BASE}/${s3Path}`
+  return retry ? `${baseUrl}?retry=${retry}` : baseUrl
+}
+
 export default function MainCanvas() {
   const { pages, selectedPageId, selectPage, rotatePage, filterLabel } = useWorkspaceStore()
   const [imgError, setImgError] = useState(false)
+  const [imgRetry, setImgRetry] = useState(0)
   const [isPanning, setIsPanning] = useState(true)
   const scrollCooldown = useRef(0)
 
@@ -23,6 +29,11 @@ export default function MainCanvas() {
   const page = filteredPages.find((p) => p.id === selectedPageId) || filteredPages[0]
   const idx = filteredPages.findIndex((p) => p.id === (page?.id || selectedPageId))
   const isRotated = page && (page.rotation % 180) !== 0
+
+  useEffect(() => {
+    setImgError(false)
+    setImgRetry(0)
+  }, [page?.s3Path])
 
   const prev = () => idx > 0 && selectPage(filteredPages[idx - 1].id)
   const next = () => idx < filteredPages.length - 1 && selectPage(filteredPages[idx + 1].id)
@@ -44,75 +55,22 @@ export default function MainCanvas() {
   }
 
   return (
-    <div className="flex flex-col h-full bg-transparent relative">
-      {/* Canvas Area */}
-      <div className="flex-1 relative overflow-hidden" onWheel={handleWheel}>
-        {page ? (
-          <TransformWrapper
-            initialScale={1}
-            minScale={0.1}
-            maxScale={5}
-            panning={{ disabled: !isPanning }}
-            centerOnInit={true}
-            centerZoomedOut={true}
-            wheel={{ disabled: true }}
-            limitToBounds={false}
-            doubleClick={{ disabled: true }}
-          >
-            {({ zoomIn, zoomOut, resetTransform, centerView }) => (
-              <>
-                {/* Toolbar - Floating & Glassy */}
-                <div className="absolute top-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 px-4 py-2 glass rounded-2xl shadow-2xl border-main">
-                  <button className="btn-ghost p-2" onClick={prev} disabled={idx <= 0}>
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-
-                  <div className="h-6 w-px dark:bg-white/10 bg-surface/10 mx-2" />
-
-                  <button className={`p-2 rounded-xl transition-all ${isPanning ? 'bg-indigo-600 text-white' : 'text-muted hover:bg-black/5 dark:hover:bg-white/5'}`} onClick={() => setIsPanning(true)}>
-                    <Hand className="w-4 h-4" />
-                  </button>
-                  <button className={`p-2 rounded-xl transition-all ${!isPanning ? 'bg-indigo-600 text-white' : 'text-muted hover:bg-black/5 dark:hover:bg-white/5'}`} onClick={() => setIsPanning(false)}>
-                    <MousePointer2 className="w-4 h-4" />
-                  </button>
-
-                  <div className="h-6 w-px dark:bg-white/10 bg-surface/10 mx-2" />
-
-                  <button 
-                    id="zoom-out" 
-                    className="btn-ghost p-2 text-muted hover:text-main"
-                    onClick={() => zoomOut()}
-                  >
-                    <ZoomOut className="w-4 h-4" />
-                  </button>
-                  <button 
-                    id="zoom-in" 
-                    className="btn-ghost p-2 text-muted hover:text-main"
-                    onClick={() => zoomIn()}
-                  >
-                    <ZoomIn className="w-4 h-4" />
-                  </button>
-
-                  <div className="h-6 w-px dark:bg-white/10 bg-surface/10 mx-2" />
-
-                  <button className="btn-ghost p-2 text-muted hover:text-main" onClick={() => rotatePage(page?.id)}>
-                    <RotateCcw className="w-4 h-4" />
-                  </button>
-
-                  <button 
-                    className="btn-ghost p-2 text-muted hover:text-main"
-                    onClick={() => window.open(`${S3_BASE}/${page?.s3Path}`, '_blank')}
-                  >
-                    <Download className="w-4 h-4" />
-                  </button>
-
-                  <div className="h-6 w-px dark:bg-white/10 bg-surface/10 mx-2" />
-
-                  <button className="btn-ghost p-2" onClick={next} disabled={idx >= pages.length - 1}>
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
-
+    <div className="flex h-full bg-transparent relative">
+      {page ? (
+        <TransformWrapper
+          initialScale={1}
+          minScale={0.1}
+          maxScale={5}
+          panning={{ disabled: !isPanning }}
+          centerOnInit={true}
+          centerZoomedOut={true}
+          wheel={{ disabled: true }}
+          limitToBounds={false}
+          doubleClick={{ disabled: true }}
+        >
+          {({ zoomIn, zoomOut, resetTransform, centerView }) => (
+            <>
+              <div className="flex-1 relative overflow-hidden" onWheel={handleWheel}>
                 <TransformComponent
                   wrapperStyle={{ width: '100%', height: '100%' }}
                   contentStyle={{ 
@@ -148,15 +106,22 @@ export default function MainCanvas() {
                               }}
                             >
                               <img
-                                key={`${page.id}-${page.rotation}`}
-                                src={`${S3_BASE}/${page.s3Path}`}
+                                key={`${page.id}-${page.rotation}-${imgRetry}`}
+                                src={imageUrl(page.s3Path, imgRetry)}
                                 alt={`Page ${idx + 1}`}
                                 className="w-full h-full object-contain select-none pointer-events-none"
                                 onLoad={() => {
                                   setImgError(false)
                                   setTimeout(() => centerView(), 200)
                                 }}
-                                onError={() => setImgError(true)}
+                                onError={() => {
+                                  if (imgRetry < 4) {
+                                    const nextRetry = imgRetry + 1
+                                    setTimeout(() => setImgRetry(nextRetry), nextRetry * 800)
+                                  } else {
+                                    setImgError(true)
+                                  }
+                                }}
                               />
                             </div>
 
@@ -181,16 +146,33 @@ export default function MainCanvas() {
                       </div>
                    </div>
                 </TransformComponent>
-              </>
-            )}
-          </TransformWrapper>
-        ) : (
+              </div>
+
+              <ViewerToolRail
+                idx={idx}
+                page={page}
+                pagesLength={pages.length}
+                isPanning={isPanning}
+                onPrev={prev}
+                onNext={next}
+                onPan={() => setIsPanning(true)}
+                onSelect={() => setIsPanning(false)}
+                onZoomIn={zoomIn}
+                onZoomOut={zoomOut}
+                onRotate={() => rotatePage(page?.id)}
+                onDownload={() => window.open(`${S3_BASE}/${page?.s3Path}`, '_blank')}
+              />
+            </>
+          )}
+        </TransformWrapper>
+      ) : (
+        <div className="flex-1 relative overflow-hidden">
           <div className="flex flex-col items-center gap-4 text-slate-700">
             <Hand className="w-12 h-12 opacity-20" />
             <p className="text-sm font-medium">Capture a page from the strip to view</p>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Page Selector Footer */}
       <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-4 px-4 py-2 glass rounded-full text-[11px] font-mono text-muted">
@@ -203,6 +185,87 @@ export default function MainCanvas() {
       </div>
     </div>
   )
+}
+
+function ViewerToolRail({
+  idx,
+  page,
+  pagesLength,
+  isPanning,
+  onPrev,
+  onNext,
+  onPan,
+  onSelect,
+  onZoomIn,
+  onZoomOut,
+  onRotate,
+  onDownload,
+}) {
+  return (
+    <aside className="w-16 shrink-0 border-l border-main bg-surface/90 backdrop-blur-xl flex items-center justify-center py-4">
+      <div className="flex flex-col items-center gap-2">
+        <RailButton title="Previous page" onClick={onPrev} disabled={idx <= 0}>
+          <ChevronLeft className="w-4 h-4" />
+        </RailButton>
+
+        <RailDivider />
+
+        <RailButton title="Pan mode" active={isPanning} onClick={onPan}>
+          <Hand className="w-4 h-4" />
+        </RailButton>
+        <RailButton title="Select mode" active={!isPanning} onClick={onSelect}>
+          <MousePointer2 className="w-4 h-4" />
+        </RailButton>
+
+        <RailDivider />
+
+        <RailButton title="Zoom out" onClick={() => onZoomOut()}>
+          <ZoomOut className="w-4 h-4" />
+        </RailButton>
+        <RailButton title="Zoom in" onClick={() => onZoomIn()}>
+          <ZoomIn className="w-4 h-4" />
+        </RailButton>
+
+        <RailDivider />
+
+        <RailButton title="Rotate page" onClick={onRotate}>
+          <RotateCcw className="w-4 h-4" />
+        </RailButton>
+        <RailButton title="Open page image" onClick={onDownload} disabled={!page?.s3Path}>
+          <Download className="w-4 h-4" />
+        </RailButton>
+
+        <RailDivider />
+
+        <RailButton title="Next page" onClick={onNext} disabled={idx >= pagesLength - 1}>
+          <ChevronRight className="w-4 h-4" />
+        </RailButton>
+      </div>
+    </aside>
+  )
+}
+
+function RailButton({ children, title, onClick, active = false, disabled = false }) {
+  return (
+    <button
+      title={title}
+      onClick={onClick}
+      disabled={disabled}
+      className={`
+        w-10 h-10 flex items-center justify-center rounded-xl border transition-all
+        disabled:opacity-35 disabled:cursor-not-allowed
+        ${active
+          ? 'bg-indigo-600 text-white border-indigo-500 shadow-lg shadow-indigo-600/20'
+          : 'bg-main text-muted border-main hover:text-main hover:bg-black/5 dark:hover:bg-white/10'}
+      `}
+    >
+      {children}
+    </button>
+  )
+}
+
+function RailDivider() {
+  return <div className="w-8 h-px bg-slate-300/70 dark:bg-white/10 my-1" />
 }
 
 function ConfidenceBadge({ score }) {

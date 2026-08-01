@@ -14,6 +14,12 @@ import { Scissors, Flag, RotateCw, GripVertical, AlertTriangle, Trash2, MoreVert
 
 const S3_BASE = import.meta.env.VITE_STORAGE_BASE || 'https://doc-proj-backend.vercel.app/api/storage/pages'
 console.log(S3_BASE);
+
+const imageUrl = (s3Path, retry = 0) => {
+  const baseUrl = `${S3_BASE}/${s3Path}`
+  return retry ? `${baseUrl}?retry=${retry}` : baseUrl
+}
+
 export default function ThumbnailSidebar() {
   const {
     pages, selectedPageIds, selectPage, splitAfterPage,
@@ -138,12 +144,7 @@ function SortableItem({ page, index }) {
           ${lowConfidence ? 'ring-2 ring-red-500/50 ring-inset' : ''}
         `}
       >
-        <img
-          src={`${S3_BASE}/${page.s3Path}`}
-          alt={`Page ${index + 1}`}
-          style={{ transform: `rotate(${page.rotation}deg)` }}
-          className="w-full aspect-[3/4] object-cover bg-surface-700 pointer-events-none"
-        />
+        <RetryingPageImage page={page} index={index} />
 
         <div className="absolute top-2 left-2 flex gap-1 pointer-events-none">
            <span className="bg-black/80 backdrop-blur-md text-main text-[10px] px-1.5 py-0.5 rounded font-mono border border-main">
@@ -206,6 +207,44 @@ function SortableItem({ page, index }) {
         </button>
       )}
     </div>
+  )
+}
+
+function RetryingPageImage({ page, index }) {
+  const [retry, setRetry] = useState(0)
+  const [failed, setFailed] = useState(false)
+
+  useEffect(() => {
+    setRetry(0)
+    setFailed(false)
+  }, [page.s3Path])
+
+  const handleError = () => {
+    if (retry < 4) {
+      const nextRetry = retry + 1
+      setTimeout(() => setRetry(nextRetry), nextRetry * 800)
+    } else {
+      setFailed(true)
+    }
+  }
+
+  if (failed) {
+    return (
+      <div className="w-full aspect-[3/4] bg-surface-700 flex items-center justify-center text-[10px] text-muted px-2 text-center">
+        Preview unavailable
+      </div>
+    )
+  }
+
+  return (
+    <img
+      src={imageUrl(page.s3Path, retry)}
+      alt={`Page ${index + 1}`}
+      style={{ transform: `rotate(${page.rotation}deg)` }}
+      className="w-full aspect-[3/4] object-cover bg-surface-700 pointer-events-none"
+      onLoad={() => setFailed(false)}
+      onError={handleError}
+    />
   )
 }
 
