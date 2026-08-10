@@ -1,23 +1,27 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useParams, useNavigate } from 'react-router-dom'
 import useWorkspaceStore from '../store/workspaceStore'
 import ThumbnailSidebar from '../components/ThumbnailSidebar'
 import MainCanvas from '../components/MainCanvas'
 import PropertiesPanel from '../components/PropertiesPanel'
 import axios from 'axios'
-import { ArrowLeft, Loader2, AlertCircle, Scissors, FileUp, CheckCircle, List, Check, AlertTriangle, ChevronDown, Sun, Moon, Download } from 'lucide-react'
-import { exportBlob, fetchChecklists } from '../api/client'
+import { ArrowLeft, Loader2, AlertCircle, Scissors, FileUp, CheckCircle, List, Flag, MessageSquare, Sun, Moon, Download } from 'lucide-react'
+import { exportBlob, fetchChecklists, fetchDocumentChecklistResults } from '../api/client'
 import useThemeStore from '../store/themeStore'
 import useToastStore from '../store/toastStore'
 
 export default function WorkspacePage() {
   const { blobId } = useParams()
   const navigate = useNavigate()
-  const { blob, pages, documents, loading, error, loadBlob, selectedDocumentId, saveDocumentChecklists, markAsComplete } = useWorkspaceStore()
+  const { blob, pages, documents, loading, error, loadBlob, selectedDocumentId, saveChecklistResults, markAsComplete } = useWorkspaceStore()
   const { theme, toggleTheme } = useThemeStore()
   const { showToast } = useToastStore()
   const [globalChecklists, setGlobalChecklists] = useState([])
   const [showChecklist, setShowChecklist] = useState(false)
+  const [results, setResults] = useState([])
+  const [openCommentFor, setOpenCommentFor] = useState(null)
+  const [saving, setSaving] = useState(false)
   const [exporting, setExporting] = useState(false)
 
   const handleExport = async () => {
@@ -92,6 +96,101 @@ export default function WorkspacePage() {
     fetchChecklists().then(({ data }) => setGlobalChecklists(data.data))
   }, [blobId])
 
+  const openChecklist = async () => {
+    const doc = documents.find(d => d.id === selectedDocumentId) || documents[0]
+    setResults(globalChecklists.map(item => ({ checklistItemId: item.id, text: item.text, answer: 'Yes', comment: '', flagged: false })))
+    setOpenCommentFor(null)
+    setShowChecklist(true)
+    if (!doc) return
+    try {
+      const { data } = await fetchDocumentChecklistResults(doc.id)
+      const savedMap = {}
+      data.data.forEach(r => { savedMap[r.checklistItemId] = r })
+      setResults(prev => prev.map(p => savedMap[p.checklistItemId]
+        ? { ...p, answer: savedMap[p.checklistItemId].answer || 'Yes', comment: savedMap[p.checklistItemId].comment || '', flagged: savedMap[p.checklistItemId].flagged }
+        : p))
+    } catch (e) {
+      console.warn('Failed to load checklist results', e)
+    }
+  }
+
+  const updateResult = (checklistItemId, patch) => {
+    setResults(prev => prev.map(r => r.checklistItemId === checklistItemId ? { ...r, ...patch } : r))
+  }
+
+  const commentTimers = useRef({})
+
+  const persistResult = async (checklistItemId, patch) => {
+    const doc = documents.find(d => d.id === selectedDocumentId) || documents[0]
+    const item = results.find(r => r.checklistItemId === checklistItemId)
+    if (!doc || !item) return
+    const payload = {
+      checklistItemId,
+      answer: patch.answer ?? item.answer,
+      comment: patch.comment ?? item.comment,
+      flagged: patch.flagged ?? item.flagged,
+    }
+    try {
+      await saveChecklistResults(doc.id, [payload])
+    } catch (e) {
+      showToast('Failed to save: ' + (e.response?.data?.error || e.message), 'error')
+    }
+  }
+
+  const toggleAnswer = (item) => {
+    const next = item.answer === 'Yes' ? 'No' : 'Yes'
+    updateResult(item.checklistItemId, { answer: next })
+    persistResult(item.checklistItemId, { answer: next })
+  }
+
+  const toggleFlag = (item) => {
+    const next = !item.flagged
+    updateResult(item.checklistItemId, { flagged: next })
+    persistResult(item.checklistItemId, { flagged: next })
+  }
+
+  const onCommentChange = (checklistItemId, value) => {
+    updateResult(checklistItemId, { comment: value })
+    clearTimeout(commentTimers.current[checklistItemId])
+    commentTimers.current[checklistItemId] = setTimeout(() => {
+      persistResult(checklistItemId, { comment: value })
+    }, 600)
+  }
+
+  const saveCommentNow = (checklistItemId, value) => {
+    clearTimeout(commentTimers.current[checklistItemId])
+    persistResult(checklistItemId, { comment: value })
+  }
+
+  const saveChecklist = async () => {
+    const doc = documents.find(d => d.id === selectedDocumentId) || documents[0]
+    if (!doc) return false
+    setSaving(true)
+    try {
+      const payload = results.map(r => ({ checklistItemId: r.checklistItemId, answer: r.answer, comment: r.comment, flagged: r.flagged }))
+      await saveChecklistResults(doc.id, payload)
+      showToast('Missing document checklist saved', 'success')
+      return true
+    } catch (e) {
+      showToast('Failed to save checklist: ' + (e.response?.data?.error || e.message), 'error')
+      return false
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const completeChecklist = async () => {
+    const ok = await saveChecklist()
+    if (ok) {
+      setShowChecklist(false)
+      showToast('Missing document checklist completed', 'success')
+    }
+  }
+
+  const createFollowUp = () => {
+    showToast('Follow-up request created', 'success')
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-main flex flex-col items-center justify-center gap-4">
@@ -157,60 +256,125 @@ export default function WorkspacePage() {
             {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>
 
-          <div className="relative">
-            <button 
-              onClick={() => setShowChecklist(!showChecklist)}
-              className="flex items-center gap-2 px-3 py-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-600 dark:text-indigo-400 text-xs font-bold rounded-lg border border-indigo-500/20 transition-all active:scale-95"
-            >
-              <List className="w-3.5 h-3.5" />
-              Checklist
-              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showChecklist ? 'rotate-180' : ''}`} />
-            </button>
+          <button 
+            onClick={openChecklist}
+            className="flex items-center gap-2 px-3 py-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 text-xs font-bold rounded-lg border border-indigo-500/20 transition-all active:scale-95"
+          >
+            <List className="w-3.5 h-3.5" />
+            Checklist
+          </button>
 
-            {showChecklist && (
-              <div className="fixed top-14 right-4 mt-2 w-80 bg-surface border border-main rounded-2xl shadow-2xl z-[9999] p-4 animate-in slide-in-from-top-2 duration-200">
-                <h3 className="text-[10px] font-bold text-muted uppercase tracking-widest mb-3 flex items-center gap-2">
-                  <List className="w-3.5 h-3.5" /> Document Checklist
-                </h3>
-                
-                {(() => {
-                  const doc = documents.find(d => d.id === selectedDocumentId)
-                  if (!doc) return <p className="text-[10px] text-slate-600 italic">Select a document to see its checklist.</p>
-                  
-                  if (globalChecklists.length === 0) return <p className="text-[10px] text-slate-600 italic">No global checklists defined.</p>
+          {showChecklist && createPortal(
+            <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowChecklist(false)}>
+              <div className="w-[min(94vw,1100px)] max-h-[88vh] flex flex-col bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+                {/* Header */}
+                <div className="flex items-center justify-between gap-4 px-6 pt-5 pb-4">
+                  <h3 className="text-[15px] font-semibold text-[#334155] dark:text-slate-100">Missing Document Checklist</h3>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="px-3 py-1 rounded-md bg-[#F4F5FC] dark:bg-slate-800 text-[11px] font-medium text-[#5B6B82] dark:text-slate-300">
+                      TaskStatus: {blob?.status || '—'}
+                    </span>
+                    <span className="px-3 py-1 rounded-md bg-[#F4F5FC] dark:bg-slate-800 text-[11px] font-medium text-[#5B6B82] dark:text-slate-300">
+                      Loan Number: {blob?.batchNo || '—'}
+                    </span>
+                  </div>
+                </div>
 
-                  const checkedItems = doc.checklists || [];
+                {/* Column headers */}
+                <div className="flex items-center px-6 py-2 bg-[#F3F5FF] dark:bg-slate-800/50">
+                  <span className="flex-1 text-[11px] font-semibold uppercase tracking-wider text-[#7C8CA0] dark:text-slate-400">Question</span>
+                  <span className="w-28 text-[11px] font-semibold uppercase tracking-wider text-[#7C8CA0] dark:text-slate-400 text-center">Answer</span>
+                  <span className="w-28 text-[11px] font-semibold uppercase tracking-wider text-[#7C8CA0] dark:text-slate-400 text-center">Comment</span>
+                  <span className="w-28 text-[11px] font-semibold uppercase tracking-wider text-[#7C8CA0] dark:text-slate-400 text-center">Flag</span>
+                </div>
 
-                  const toggleCheck = (text) => {
-                    const next = checkedItems.includes(text) 
-                      ? checkedItems.filter(t => t !== text)
-                      : [...checkedItems, text];
-                    saveDocumentChecklists(doc.id, next);
-                  };
-
-                  return (
-                    <div className="space-y-2">
-                      {globalChecklists.map((item, idx) => {
-                        const isChecked = checkedItems.includes(item.text);
-                        return (
-                          <div 
-                            key={idx} 
-                            onClick={() => toggleCheck(item.text)}
-                            className="flex items-start gap-3 p-2.5 rounded-xl bg-main border border-main cursor-pointer hover:dark:bg-white/10 bg-surface/10 transition-colors"
-                          >
-                            <div className={`mt-0.5 shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors ${isChecked ? 'bg-indigo-500 border-indigo-500 text-main' : 'dark:border-white/20 border-black/20'}`}>
-                              {isChecked && <Check className="w-3 h-3" />}
-                            </div>
-                            <span className={`text-[11px] leading-tight transition-colors ${isChecked ? 'text-muted line-through' : 'text-muted'}`}>{item.text}</span>
+                {/* Question rows */}
+                <div className="flex-1 overflow-y-auto">
+                  {(() => {
+                    const doc = documents.find(d => d.id === selectedDocumentId) || documents[0]
+                    if (!doc) return <p className="text-[11px] text-slate-500 dark:text-slate-400 italic px-6 py-4">Select a document to see its checklist.</p>
+                    if (globalChecklists.length === 0) return <p className="text-[11px] text-slate-500 dark:text-slate-400 italic px-6 py-4">No global checklist requirements defined. Add them in Admin → Checklists.</p>
+                    return results.map((item) => (
+                      <div key={item.checklistItemId}>
+                        <div className={`flex items-center px-6 py-2.5 bg-[#FAFAFA] dark:bg-slate-800/20 border-b border-[#D3D3D3] dark:border-slate-700/60 ${item.flagged ? 'border-l-2 border-l-amber-400' : ''}`}>
+                          <span className="flex-1 text-[13px] leading-snug text-[#5C6B7A] dark:text-slate-300 pr-6">{item.text}</span>
+                          <div className="w-28 flex justify-center">
+                            <button
+                              onClick={() => toggleAnswer(item)}
+                              className="text-[13px] text-[#5C6B7A] dark:text-slate-300 text-center cursor-pointer select-none hover:text-[#334155] dark:hover:text-slate-100"
+                            >
+                              {item.answer || '—'}
+                            </button>
                           </div>
-                        )
-                      })}
-                    </div>
-                  )
-                })()}
+                          <div className="w-28 flex justify-center">
+                            <button
+                              onClick={() => setOpenCommentFor(openCommentFor === item.checklistItemId ? null : item.checklistItemId)}
+                              title={item.comment ? 'Edit comment' : 'Add comment'}
+                              className={`p-1.5 rounded-md transition-colors ${item.comment ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400' : 'text-[#9AA8B8] dark:text-slate-500 hover:bg-slate-200/60 dark:hover:bg-slate-700 hover:text-[#5C6B7A]'}`}
+                            >
+                              <MessageSquare className={`w-3.5 h-3.5 ${item.comment ? 'fill-current' : ''}`} />
+                            </button>
+                          </div>
+                          <div className="w-28 flex justify-center">
+                            <button
+                              onClick={() => toggleFlag(item)}
+                              title={item.flagged ? 'Remove flag' : 'Flag this question'}
+                              className={`p-1.5 rounded-md transition-colors ${item.flagged ? 'bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400' : 'text-[#9AA8B8] dark:text-slate-500 hover:bg-slate-200/60 dark:hover:bg-slate-700 hover:text-[#5C6B7A]'}`}
+                            >
+                              <Flag className={`w-3.5 h-3.5 ${item.flagged ? 'fill-current' : ''}`} />
+                            </button>
+                          </div>
+                        </div>
+                        {openCommentFor === item.checklistItemId && (
+                          <div className="px-6 py-2.5 bg-[#F5F7FB] dark:bg-slate-800/40 border-b border-[#D3D3D3] dark:border-slate-700/60">
+                            <input
+                              autoFocus
+                              value={item.comment || ''}
+                              onChange={e => onCommentChange(item.checklistItemId, e.target.value)}
+                              onKeyDown={e => { if (e.key === 'Enter') { saveCommentNow(item.checklistItemId, e.target.value); setOpenCommentFor(null) } }}
+                              onBlur={e => saveCommentNow(item.checklistItemId, e.target.value)}
+                              placeholder="Add a comment for this checklist question..."
+                              className="w-full px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-[#D3D3D3] dark:border-slate-600 text-[12px] text-[#5C6B7A] dark:text-slate-300 outline-none focus:border-[#2E7EFA] transition-colors"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  })()}
+                </div>
+
+                {/* Footer */}
+                <div className="flex items-center justify-end gap-3 px-6 py-4 bg-white dark:bg-slate-900">
+                  <button
+                    onClick={createFollowUp}
+                    className="px-4 py-[7px] rounded-lg bg-white dark:bg-slate-800 border border-[#A8BFD6] dark:border-slate-600 text-[12px] font-medium text-[#6A93B0] dark:text-slate-300 hover:bg-[#F7FAFD] dark:hover:bg-slate-700 transition-colors"
+                  >
+                    Create Follow-Up
+                  </button>
+                  <button
+                    onClick={completeChecklist}
+                    className="px-4 py-[7px] rounded-lg bg-[#2E7EFA] hover:bg-[#1f6ff3] text-white text-[12px] font-medium transition-colors"
+                  >
+                    Complete
+                  </button>
+                  <button
+                    onClick={saveChecklist}
+                    disabled={saving}
+                    className="px-4 py-[7px] rounded-lg bg-white dark:bg-slate-800 border border-[#A8BFD6] dark:border-slate-600 text-[12px] font-medium text-[#6A93B0] dark:text-slate-300 hover:bg-[#F7FAFD] dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
+                  >
+                    {saving ? 'Saving...' : 'Save'}
+                  </button>
+                  <button
+                    onClick={() => setShowChecklist(false)}
+                    className="px-4 py-[7px] rounded-lg bg-white dark:bg-slate-800 border border-[#A8BFD6] dark:border-slate-600 text-[12px] font-medium text-[#6A93B0] dark:text-slate-300 hover:bg-[#F7FAFD] dark:hover:bg-slate-700 transition-colors"
+                  >
+                    Close
+                  </button>
+                </div>
               </div>
-            )}
-          </div>
+            </div>,
+            document.body
+          )}
 
           <button 
             onClick={handleDownloadReport}

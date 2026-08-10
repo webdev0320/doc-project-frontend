@@ -168,6 +168,12 @@ const useWorkspaceStore = create((set, get) => ({
     set({ documents: documents.map((d) => (d.id === docId ? { ...d, checklists: data.data.checklists } : d)) })
   },
 
+  saveChecklistResults: async (docId, results) => {
+    const { saveDocumentChecklistResults } = await import('../api/client.js');
+    const { data } = await saveDocumentChecklistResults(docId, results);
+    return data.data;
+  },
+
   renameDocument: async (docId, name, documentType) => {
     const { blob, documents } = get()
     const { data } = await renameDocument(docId, { name, documentType, blobId: blob.id })

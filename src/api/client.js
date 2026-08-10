@@ -53,6 +53,8 @@ export const splitDocument = (payload) => api.post('/documents/split', payload)
 export const mergeDocuments = (payload) => api.post('/documents/merge', payload)
 export const verifyDocument = (id, payload) => api.patch(`/documents/${id}/verify`, payload)
 export const saveDocumentChecklists = (id, checklists) => api.patch(`/documents/${id}/checklists`, { checklists })
+export const fetchDocumentChecklistResults = (id) => api.get(`/documents/${id}/checklist-results`)
+export const saveDocumentChecklistResults = (id, results) => api.patch(`/documents/${id}/checklist-results`, { results })
 export const renameDocument = (id, payload) => api.patch(`/documents/${id}/rename`, payload)
 export const updateBlob = (id, data) => api.patch(`/blobs/${id}`, data)
 
