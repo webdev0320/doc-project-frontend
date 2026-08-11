@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { fetchConfiguredDocTypes } from '../api/client'
 import useWorkspaceStore from '../store/workspaceStore'
-import { CheckCircle2, ChevronDown, FileText, Layers, Merge, AlertTriangle, List, Check, Square, FileJson, X, Download } from 'lucide-react'
+import { CheckCircle2, ChevronDown, FileText, Layers, Merge, AlertTriangle, List, Square, FileJson, Download } from 'lucide-react'
 import useToastStore from '../store/toastStore'
 
 
@@ -21,13 +21,10 @@ export default function PropertiesPanel() {
   const [docName, setDocName] = useState('')
   const [mergeTarget, setMergeTarget] = useState('')
   const [busy, setBusy] = useState(false)
-  const [checkedFields, setCheckedFields] = useState(new Set())
-  const [isAddingField, setIsAddingField] = useState(false)
-  const [newFieldName, setNewFieldName] = useState('')
-  const [newFieldValue, setNewFieldValue] = useState('')
-  const [searchQuery, setSearchQuery] = useState('')
   const [availableTypes, setAvailableTypes] = useState([])
   const [showRawJson, setShowRawJson] = useState(false)
+  const [qaValues, setQaValues] = useState({})
+  const [savingValues, setSavingValues] = useState(false)
 
   useEffect(() => {
     fetchConfiguredDocTypes()
@@ -95,9 +92,6 @@ export default function PropertiesPanel() {
     }
   }, [doc?.id, page?.id, page?.extractedData])
 
-  const filteredFields = Object.entries(fields)
-    .filter(([k, v]) => k.toLowerCase().includes(searchQuery.toLowerCase()) || String(v).toLowerCase().includes(searchQuery.toLowerCase()))
-
   // Map each flattened field key -> page number(s) where the value was extracted
   const fieldPageMap = (() => {
     const map = {}
@@ -138,22 +132,6 @@ export default function PropertiesPanel() {
     }
     return map
   })()
-
-
-  const toggleCheck = (key) => {
-    const next = new Set(checkedFields)
-    if (next.has(key)) next.delete(key)
-    else next.add(key)
-    setCheckedFields(next)
-  }
-
-  const handleAddField = () => {
-    if (!newFieldName.trim()) return
-    setFields(prev => ({ ...prev, [newFieldName]: newFieldValue }))
-    setNewFieldName('')
-    setNewFieldValue('')
-    setIsAddingField(false)
-  }
 
   useEffect(() => {
     if (doc) { setDocType(doc.documentType || ''); setDocName(doc.name || '') }
@@ -233,6 +211,31 @@ export default function PropertiesPanel() {
     showToast('Document data exported successfully', 'success')
   }
 
+  const openExtractedValues = () => {
+    setQaValues(Object.fromEntries(Object.entries(fields).map(([k, v]) => [k, String(v ?? '')])))
+    setShowRawJson(true)
+  }
+
+  const handleSaveValues = async (closeAfter) => {
+    if (!doc) return
+    setSavingValues(true)
+    try {
+      const merged = { ...fields, ...qaValues }
+      setFields(merged)
+      await verifyDocument(doc.id, docType, docName, merged)
+      showToast(closeAfter ? 'Extracted values completed' : 'Extracted values saved', 'success')
+      if (closeAfter) setShowRawJson(false)
+    } catch (e) {
+      showToast('Failed to save values: ' + (e.response?.data?.error || e.message), 'error')
+    } finally {
+      setSavingValues(false)
+    }
+  }
+
+  const createFollowUp = () => {
+    showToast('Follow-up request created', 'success')
+  }
+
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <div className="panel-header flex justify-between items-center">
@@ -288,7 +291,7 @@ export default function PropertiesPanel() {
                       DOWNLOAD CSV
                     </button>
                     <button 
-                      onClick={() => setShowRawJson(true)}
+                      onClick={openExtractedValues}
                       className="flex items-center gap-1.5 text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-300 transition-colors group"
                     >
                       <FileJson className="w-3 h-3 group-hover:scale-110 transition-transform" />
@@ -314,7 +317,7 @@ export default function PropertiesPanel() {
             </button>
             {/* Get all unique labels from pages */}
             {Array.from(new Set(pages.map(p => p.aiLabel || 'Unclassified'))).sort().map(type => {
-              const docsOfThisType = documents.filter(d => d.documentType === type);
+const docsOfThisType = documents.filter(d => d.documentType === type);
               
               return (
                 <div key={type} className="space-y-1">
@@ -448,146 +451,88 @@ export default function PropertiesPanel() {
 
       {/* Extracted Values Modal */}
       {showRawJson && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md">
-          <div className="bg-surface border border-main rounded-3xl w-full max-w-4xl max-h-[85vh] flex flex-col shadow-2xl shadow-black/50 animate-in fade-in zoom-in duration-200">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-main shrink-0">
-              <div className="flex items-center gap-2">
-                <FileJson className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                <h3 className="text-sm font-bold text-main uppercase tracking-widest">Extracted Values</h3>
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setShowRawJson(false)}
+        >
+          <div
+            className="w-[min(94vw,1100px)] max-h-[88vh] flex flex-col bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-in zoom-in-95 duration-200"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between gap-4 px-6 pt-5 pb-4">
+              <h3 className="text-[15px] font-semibold text-[#334155] dark:text-slate-100">Note</h3>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="px-3 py-1 rounded-md bg-[#F4F5FC] dark:bg-slate-800 text-[11px] font-medium text-[#5B6B82] dark:text-slate-300">
+                  Task Status: {blob?.status || '—'}
+                </span>
+                <span className="px-3 py-1 rounded-md bg-[#F4F5FC] dark:bg-slate-800 text-[11px] font-medium text-[#5B6B82] dark:text-slate-300">
+                  Loan Number: {blob?.batchNo || '—'}
+                </span>
               </div>
-              <button onClick={() => setShowRawJson(false)} className="p-2 hover:bg-main rounded-full text-muted hover:text-main transition-all">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto p-6 scrollbar-thin bg-main/50">
-               <div className="space-y-4">
-                 {/* Search Bar */}
-                 <div className="relative">
-                   <input 
-                     placeholder="Search extracted data..." 
-                     className="w-full bg-main border border-main rounded-lg px-4 py-3 text-sm text-main placeholder-slate-600 focus:border-indigo-500/50 outline-none transition-all"
-                     value={searchQuery}
-                     onChange={e => setSearchQuery(e.target.value)}
-                   />
-                   <List className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600" />
-                 </div>
-
-                 <div className="space-y-3">
-                   {filteredFields.map(([k, v]) => (
-                     <div 
-                       key={k} 
-                       className={`
-                         flex items-start gap-4 p-5 rounded-2xl transition-all border group
-                         ${checkedFields.has(k) 
-                           ? 'bg-emerald-500/5 border-emerald-500/20' 
-                           : 'bg-white/5 border-white/5 hover:border-indigo-500/20'}
-                       `}
-                     >
-                        <button 
-                          onClick={(e) => { e.stopPropagation(); toggleCheck(k); }}
-                          className={`
-                            mt-0.5 w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all shrink-0
-                            ${checkedFields.has(k) ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-white/10 text-transparent hover:border-white/30'}
-                          `}
-                        >
-                          <Check className="w-3.5 h-3.5" />
-                        </button>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex justify-between items-center gap-2 mb-2">
-                            <p className={`text-[10px] font-bold uppercase tracking-widest truncate ${checkedFields.has(k) ? 'text-emerald-500' : 'text-muted'}`}>
-                              {k.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
-                            </p>
-                            <FieldPageBadge pageNumbers={fieldPageMap[k]} />
-                          </div>
-                          <input 
-                            value={v}
-                            onChange={(e) => {
-                               const newVal = e.target.value;
-                               setFields(prev => ({ ...prev, [k]: newVal }));
-                            }}
-                            className={`
-                              w-full bg-black/20 border border-white/5 rounded-xl px-4 py-2.5 text-sm font-mono outline-none focus:border-indigo-500/50 focus:bg-black/40 transition-all
-                              ${checkedFields.has(k) ? 'text-emerald-100' : 'text-indigo-200'}
-                            `}
-                          />
-                        </div>
-                     </div>
-                   ))}
-                   
-                   {filteredFields.length === 0 && searchQuery && (
-                     <div className="text-center py-8 text-slate-600 text-sm italic">No matches for "{searchQuery}"</div>
-                   )}
-                 </div>
-
-                 {/* Add Field Input */}
-                 {isAddingField ? (
-                    <div className="bg-main border border-indigo-500/30 rounded-xl p-4 space-y-3 animate-in fade-in shadow-2xl mt-4">
-                       <input 
-                         placeholder="Label (e.g. Loan Number)" 
-                         className="w-full bg-[#13161e] border border-main rounded-lg px-3 py-2.5 text-sm text-main placeholder-slate-700 outline-none focus:border-indigo-500/50"
-                         value={newFieldName}
-                         onChange={e => setNewFieldName(e.target.value)}
-                         autoFocus
-                       />
-                       <input 
-                         placeholder="Value" 
-                         className="w-full bg-[#13161e] border border-main rounded-lg px-3 py-2.5 text-sm text-main placeholder-slate-700 outline-none focus:border-indigo-500/50"
-                         value={newFieldValue}
-                         onChange={e => setNewFieldValue(e.target.value)}
-                       />
-                       <div className="flex gap-3 pt-2">
-                          <button onClick={handleAddField} className="flex-1 bg-indigo-600 hover:bg-indigo-500 py-2.5 rounded-lg text-xs font-bold transition-all active:scale-95">ADD FIELD</button>
-                          <button onClick={() => setIsAddingField(false)} className="px-4 py-2.5 bg-main hover:dark:bg-white/10 rounded-lg text-xs font-bold transition-all">CANCEL</button>
-                       </div>
-                    </div>
-                 ) : (
-                    <button 
-                      onClick={() => setIsAddingField(true)}
-                      className="w-full mt-4 py-4 border border-dashed border-main rounded-xl text-xs font-bold text-muted hover:border-indigo-500/30 hover:text-indigo-600 dark:text-indigo-400 transition-all flex items-center justify-center gap-2 group"
-                    >
-                       <div className="w-6 h-6 rounded-full bg-main flex items-center justify-center group-hover:bg-indigo-500/20 transition-all">
-                          <Check className="w-4 h-4" />
-                       </div> 
-                       ADD MANUAL FIELD
-                    </button>
-                 )}
-               </div>
             </div>
 
-            <div className="p-4 bg-main flex justify-end gap-3 shrink-0 border-t border-main">
-              <button 
-                onClick={() => {
-                  navigator.clipboard.writeText(JSON.stringify(combinedExtractedData, null, 2))
-                  alert('JSON copied to clipboard')
-                }}
-                className="px-4 py-2 bg-main hover:dark:bg-white/10 text-muted text-[10px] font-bold rounded-lg transition-all active:scale-95"
+            {/* Column headers */}
+            <div className="flex items-center px-6 py-2 bg-[#F3F5FF] dark:bg-slate-800/50">
+              <span className="flex-1 text-[11px] font-semibold uppercase tracking-wider text-[#7C8CA0] dark:text-slate-400">Name</span>
+              <span className="w-56 text-[11px] font-semibold uppercase tracking-wider text-[#7C8CA0] dark:text-slate-400">OCRValue</span>
+              <span className="w-56 text-[11px] font-semibold uppercase tracking-wider text-[#7C8CA0] dark:text-slate-400">Seller Data</span>
+              <span className="w-56 text-[11px] font-semibold uppercase tracking-wider text-[#7C8CA0] dark:text-slate-400">QA Value</span>
+            </div>
+
+            {/* Value rows */}
+            <div className="flex-1 overflow-y-auto">
+              {(() => {
+                const entries = Object.entries(fields)
+                if (!doc) return <p className="text-[11px] text-slate-500 dark:text-slate-400 italic px-6 py-4">Select a document to see its extracted values.</p>
+                if (entries.length === 0) return <p className="text-[11px] text-slate-500 dark:text-slate-400 italic px-6 py-4">No extracted values available for this document.</p>
+                return entries.map(([k, v], idx) => (
+                  <div
+                    key={k}
+                    className={`flex items-center px-6 py-2.5 border-b border-[#D3D3D3] dark:border-slate-700/60 ${idx % 2 === 0 ? 'bg-white dark:bg-slate-900/40' : 'bg-[#FAFAFA] dark:bg-slate-800/20'}`}
+                  >
+                    <span className="flex-1 text-[13px] leading-snug text-[#5C6B7A] dark:text-slate-300 pr-6">
+                      {k.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                    </span>
+                    <span className="w-56 text-[13px] font-mono text-[#334155] dark:text-slate-200 truncate">{String(v ?? '') || '—'}</span>
+                    <span className="w-56 text-[13px] font-mono text-[#9AA8B8] dark:text-slate-500 truncate">—</span>
+                    <input
+                      value={qaValues[k] ?? ''}
+                      onChange={e => setQaValues(prev => ({ ...prev, [k]: e.target.value }))}
+                      placeholder="—"
+                      className="w-56 px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-[#D3D3D3] dark:border-slate-600 text-[12px] font-mono text-[#334155] dark:text-slate-200 outline-none focus:border-[#2E7EFA] transition-colors"
+                    />
+                  </div>
+                ))
+              })()}
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-3 px-6 py-4 bg-white dark:bg-slate-900">
+              <button
+                onClick={createFollowUp}
+                className="px-4 py-[7px] rounded-lg bg-white dark:bg-slate-800 border border-[#A8BFD6] dark:border-slate-600 text-[12px] font-medium text-[#6A93B0] dark:text-slate-300 hover:bg-[#F7FAFD] dark:hover:bg-slate-700 transition-colors"
               >
-                COPY RAW JSON
+                Create Follow-Up
               </button>
-              <button 
-                onClick={() => {
-                  const keys = Object.keys(fields);
-                  if (keys.length === 0) return;
-                  let csvContent = "data:text/csv;charset=utf-8,Field,Value,Page\n";
-                  keys.forEach(k => {
-                    const escapedKey = `"${k.replace(/"/g, '""')}"`;
-                    const escapedValue = `"${String(fields[k] || '').replace(/"/g, '""')}"`;
-                    const pageRef = fieldPageMap[k]?.length ? [...fieldPageMap[k]].sort((a, b) => a - b).join(', ') : 'Manual';
-                    const escapedPage = `"${String(pageRef).replace(/"/g, '""')}"`;
-                    csvContent += `${escapedKey},${escapedValue},${escapedPage}\n`;
-                  });
-                  const encodedUri = encodeURI(csvContent);
-                  const link = document.createElement("a");
-                  link.setAttribute("href", encodedUri);
-                  link.setAttribute("download", `${docName || 'extracted_data'}.csv`);
-                  document.body.appendChild(link);
-                  link.click();
-                  document.body.removeChild(link);
-                }}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold rounded-lg transition-all active:scale-95 flex items-center gap-2"
+              <button
+                onClick={() => handleSaveValues(true)}
+                className="px-4 py-[7px] rounded-lg bg-[#2E7EFA] hover:bg-[#1f6ff3] text-white text-[12px] font-medium transition-colors"
               >
-                EXPORT TO EXCEL
+                Complete
+              </button>
+              <button
+                onClick={() => handleSaveValues(false)}
+                disabled={savingValues}
+                className="px-4 py-[7px] rounded-lg bg-white dark:bg-slate-800 border border-[#A8BFD6] dark:border-slate-600 text-[12px] font-medium text-[#6A93B0] dark:text-slate-300 hover:bg-[#F7FAFD] dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
+              >
+                {savingValues ? 'Saving...' : 'Save'}
+              </button>
+              <button
+                onClick={() => setShowRawJson(false)}
+                className="px-4 py-[7px] rounded-lg bg-white dark:bg-slate-800 border border-[#A8BFD6] dark:border-slate-600 text-[12px] font-medium text-[#6A93B0] dark:text-slate-300 hover:bg-[#F7FAFD] dark:hover:bg-slate-700 transition-colors"
+              >
+                Close
               </button>
             </div>
           </div>
@@ -622,20 +567,4 @@ function StatusBadge({ status }) {
   if (status === 'HUMAN_VERIFIED') return <span className="badge-verified">Verified</span>
   if (status === 'AI_CLASSIFIED') return <span className="badge-ai">AI</span>
   return null
-}
-
-function FieldPageBadge({ pageNumbers }) {
-  if (!pageNumbers || pageNumbers.length === 0) {
-    return (
-      <span className="shrink-0 text-[9px] font-bold uppercase tracking-widest text-slate-600 bg-black/20 px-2 py-0.5 rounded-md">
-        Manual
-      </span>
-    )
-  }
-  return (
-    <span className="shrink-0 inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded-md">
-      <FileText className="w-2.5 h-2.5" />
-      Page {[...pageNumbers].sort((a, b) => a - b).join(', ')}
-    </span>
-  )
 }
