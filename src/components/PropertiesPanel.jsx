@@ -317,7 +317,7 @@ export default function PropertiesPanel() {
             </button>
             {/* Get all unique labels from pages */}
             {Array.from(new Set(pages.map(p => p.aiLabel || 'Unclassified'))).sort().map(type => {
-const docsOfThisType = documents.filter(d => d.documentType === type);
+              const docsOfThisType = documents.filter(d => d.documentType === type);
               
               return (
                 <div key={type} className="space-y-1">
