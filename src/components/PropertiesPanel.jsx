@@ -305,53 +305,34 @@ export default function PropertiesPanel() {
         <Section title="Documents" icon={<Layers className="w-3.5 h-3.5" />}>
           <div className="space-y-4">
             <button
-              onClick={() => setFilterLabel(null)}
+              onClick={() => { setFilterLabel(null); selectDocument(null) }}
               className={`
                 w-full text-left px-2 py-1 rounded text-[10px] font-bold uppercase tracking-widest transition-colors
-                ${filterLabel === null 
+                ${filterLabel === null && !selectedDocumentId
                   ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-500/10' 
                   : 'text-muted hover:text-indigo-500'}
               `}
             >
               Show All
             </button>
-            {/* Get all unique labels from pages */}
-            {Array.from(new Set(pages.map(p => p.aiLabel || 'Unclassified'))).sort().map(type => {
-              const docsOfThisType = documents.filter(d => d.documentType === type);
-              
-              return (
-                <div key={type} className="space-y-1">
-                  <button
-                    onClick={() => setFilterLabel(type)}
-                    className={`
-                      w-full text-left px-1 py-1 rounded text-[10px] font-bold uppercase tracking-widest pl-1 transition-colors
-                      ${filterLabel === type 
-                        ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-500/10' 
-                        : 'text-indigo-500 hover:text-indigo-600'}
-                    `}
-                  >
-                    {type}
-                  </button>
-                  
-                  {docsOfThisType.length > 0 && docsOfThisType.map((d) => (
-                    <button
-                      key={d.id}
-                      id={`doc-select-${d.id}`}
-                      onClick={() => selectDocument(d.id)}
-                      className={`
-                        w-full text-left px-3 py-2 rounded-lg text-xs transition-all duration-150 border
-                        ${d.id === selectedDocumentId
-                          ? 'bg-indigo-600/10 dark:bg-indigo-600/20 border-indigo-500/40 text-indigo-600 dark:text-indigo-600 dark:text-indigo-200'
-                          : 'bg-surface-700 border-main text-muted hover:dark:border-white/20 border-black/20'}
-                      `}
-                    >
-                      <p className="font-medium truncate text-main">{d.name}</p>
-                      <p className="text-muted mt-0.5">{d.documentType} · {d.pages?.length ?? 0}p</p>
-                    </button>
-                  ))}
-                </div>
-              );
-            })}
+            {documents.length > 0 ? documents.map((d) => (
+              <button
+                key={d.id}
+                id={`doc-select-${d.id}`}
+                onClick={() => selectDocument(d.id)}
+                className={`
+                  w-full text-left px-3 py-2 rounded-lg text-xs transition-all duration-150 border
+                  ${d.id === selectedDocumentId
+                    ? 'bg-indigo-600/10 dark:bg-indigo-600/20 border-indigo-500/40 text-indigo-200'
+                    : 'bg-surface-700 border-main text-muted hover:dark:border-white/20 border-black/20'}
+                `}
+              >
+                <p className="font-medium truncate text-main">{d.name}</p>
+                <p className="text-muted mt-0.5">{d.documentType} · {d.pages?.length ?? 0}p</p>
+              </button>
+            )) : (
+              <p className="text-[10px] text-muted italic px-1">No documents found.</p>
+            )}
           </div>
         </Section>
 
