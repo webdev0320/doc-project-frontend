@@ -14,7 +14,7 @@ export default function PropertiesPanel() {
   } = useWorkspaceStore()
 
   const page = pages.find((p) => p.id === selectedPageId)
-  const doc = documents.find((d) => d.id === selectedDocumentId)
+  const doc = documents.find((d) => d.id === selectedDocumentId) || documents[0]
 
   const { showToast } = useToastStore()
   const [docType, setDocType] = useState('')
@@ -284,7 +284,7 @@ export default function PropertiesPanel() {
         {/* ── Verification Checklist ── */}
         {doc && (
           <Section title="Verification Checklist" icon={<List className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />}>
-              <div className="flex items-center justify-between border-b border-main pb-2">
+              <div className="flex items-center justify-between border-b border-main pb-2 mb-3">
                  <span className="text-[10px] font-bold text-muted uppercase tracking-widest">Extracted Fields</span>
                  <div className="flex items-center gap-3">
                     <button 
@@ -303,6 +303,29 @@ export default function PropertiesPanel() {
                     </button>
                  </div>
               </div>
+              {Object.keys(fields).length > 0 ? (
+                <div className="space-y-2">
+                  {Object.entries(fields).map(([key, value]) => (
+                    <div key={key} className="flex items-start justify-between gap-2 py-1.5 border-b border-main/50 last:border-0">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[10px] font-bold text-muted uppercase tracking-widest truncate">
+                          {key.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                        </p>
+                        <p className="text-xs text-main mt-0.5 break-words">
+                          {value || '—'}
+                        </p>
+                      </div>
+                      {fieldPageMap[key]?.length > 0 && (
+                        <span className="shrink-0 text-[9px] font-mono text-muted bg-main/50 px-1.5 py-0.5 rounded">
+                          p.{[...fieldPageMap[key]].sort((a, b) => a - b).join(', ')}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[10px] text-muted italic text-center py-4">No extracted fields available.</p>
+              )}
           </Section>
         )}
 

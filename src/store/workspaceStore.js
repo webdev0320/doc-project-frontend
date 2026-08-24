@@ -39,7 +39,7 @@ const useWorkspaceStore = create((set, get) => ({
         loading: false,
         selectedPageId: firstPageId,
         selectedPageIds: firstPageId ? [firstPageId] : [],
-        selectedDocumentId: data.data.documents[0]?.id ?? null,
+        selectedDocumentId: null,
         filterLabel: null, // Reset filter
       })
     } catch (e) {
