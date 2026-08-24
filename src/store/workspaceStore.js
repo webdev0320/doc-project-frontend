@@ -61,7 +61,7 @@ const useWorkspaceStore = create((set, get) => ({
   },
 
   selectDocument: (docId) => set({ selectedDocumentId: docId, filterLabel: null }),
-  setFilterLabel: (label) => set({ filterLabel: label }),
+  setFilterLabel: (label) => set({ filterLabel: label, ...(label === null ? { selectedDocumentId: null } : {}) }),
 
   setZoom: (zoom) => set({ zoom: Math.min(3, Math.max(0.25, zoom)) }),
 

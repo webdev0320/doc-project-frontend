@@ -183,7 +183,7 @@ export default function MainCanvas() {
       <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-4 px-4 py-2 glass rounded-full text-[11px] font-mono text-muted">
          <span>DOCUMENT_FLIGHT_PATH</span>
          <div className="h-3 w-px dark:bg-white/10 bg-surface/10" />
-         <span className="text-main font-bold">{idx + 1} OF {pages.length}</span>
+         <span className="text-main font-bold">{idx + 1} OF {filteredPages.length}</span>
          {page?.filename && (
            <span className="opacity-50 text-[9px] truncate max-w-[100px]">{page.filename}</span>
          )}
