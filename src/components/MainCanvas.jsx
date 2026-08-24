@@ -15,16 +15,21 @@ const imageUrl = (s3Path, retry = 0) => {
 }
 
 export default function MainCanvas() {
-  const { pages, selectedPageId, selectPage, rotatePage, filterLabel } = useWorkspaceStore()
+  const { pages, selectedPageId, selectPage, rotatePage, filterLabel, documents } = useWorkspaceStore()
   const [imgError, setImgError] = useState(false)
   const [imgRetry, setImgRetry] = useState(0)
   const [isPanning, setIsPanning] = useState(true)
   const scrollCooldown = useRef(0)
 
-  // Filter pages if a label is selected
-  const filteredPages = filterLabel 
-    ? pages.filter(p => (p.aiLabel || 'Unclassified') === filterLabel)
-    : pages
+  // Filter pages by document membership (same logic as ThumbnailSidebar)
+  let filteredPages = pages
+  if (filterLabel) {
+    const normalizedFilter = filterLabel.replace(/ /g, '_').toUpperCase()
+    const matchingDocPageIds = documents
+      .filter(d => d.documentType.toUpperCase() === normalizedFilter)
+      .flatMap(d => (d.pages || []).map(dp => dp.pageId))
+    filteredPages = pages.filter(p => matchingDocPageIds.includes(p.id))
+  }
 
   const page = filteredPages.find((p) => p.id === selectedPageId) || filteredPages[0]
   const idx = filteredPages.findIndex((p) => p.id === (page?.id || selectedPageId))

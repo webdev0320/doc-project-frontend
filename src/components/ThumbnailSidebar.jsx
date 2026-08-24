@@ -30,7 +30,11 @@ export default function ThumbnailSidebar() {
   // Filter pages by label or selected document
   let filteredPages = pages
   if (filterLabel) {
-    filteredPages = pages.filter(p => (p.aiLabel || 'Unclassified') === filterLabel)
+    const normalizedFilter = filterLabel.replace(/ /g, '_').toUpperCase()
+    const matchingDocPageIds = documents
+      .filter(d => d.documentType.toUpperCase() === normalizedFilter)
+      .flatMap(d => (d.pages || []).map(dp => dp.pageId))
+    filteredPages = pages.filter(p => matchingDocPageIds.includes(p.id))
   } else if (selectedDocumentId) {
     const selectedDoc = documents.find(d => d.id === selectedDocumentId)
     if (selectedDoc) {

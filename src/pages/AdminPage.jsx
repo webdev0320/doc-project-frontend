@@ -4,19 +4,20 @@ import {
   fetchConfiguredDocTypes, createConfiguredDocType, updateConfiguredDocType, deleteConfiguredDocType,
   fetchStorageSettings, updateStorageSettings,
   fetchChecklists, createChecklist, deleteChecklist
-  , fetchEngineErrors, fetchFailedBlobs
+  , fetchEngineErrors, fetchFailedBlobs,
+  fetchAdminBlobs, fetchAdminBlobDocuments, adminRenameDocument, adminUpdateExtractedData
 } from '../api/client'
 import {
   Users, FileStack, ShieldAlert, Plus, Trash2,
   CheckCircle, XCircle, ChevronRight, Settings,
-  ArrowLeft, Search, Mail, Server, Cloud, Edit2, X, List
+  ArrowLeft, Search, Mail, Server, Cloud, Edit2, X, List, FileText, FileJson
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import useAuthStore from '../store/authStore'
 
 export default function AdminPage() {
   const navigate = useNavigate()
-  const [activeTab, setActiveTab] = useState('users') // 'users' | 'doctypes' | 'checklists' | 'settings'
+  const [activeTab, setActiveTab] = useState('users') // 'users' | 'doctypes' | 'checklists' | 'processing' | 'settings' | 'indexing' | 'extracted'
   // allow 'processing' tab
 
   return (
@@ -64,6 +65,18 @@ export default function AdminPage() {
               label="Processing"
             />
             <TabBtn
+              active={activeTab === 'indexing'}
+              onClick={() => setActiveTab('indexing')}
+              icon={<FileText className="w-4 h-4" />}
+              label="Document Indexing"
+            />
+            <TabBtn
+              active={activeTab === 'extracted'}
+              onClick={() => setActiveTab('extracted')}
+              icon={<FileJson className="w-4 h-4" />}
+              label="Extracted Values"
+            />
+            <TabBtn
                active={activeTab === 'settings'}
                onClick={() => setActiveTab('settings')}
                icon={<Settings className="w-4 h-4" />}
@@ -85,13 +98,15 @@ export default function AdminPage() {
          <header className="p-8 border-b dark:border-white/5 border-black/5 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex-1 min-w-0">
               <h1 className="text-2xl font-bold dark:text-white text-slate-900 truncate">
-                {activeTab === 'users' ? 'Manage Users' : activeTab === 'doctypes' ? 'Managed Document Types' : activeTab === 'checklists' ? 'Global Checklists' : 'System Settings'}
+                {activeTab === 'users' ? 'Manage Users' : activeTab === 'doctypes' ? 'Managed Document Types' : activeTab === 'checklists' ? 'Global Checklists' : activeTab === 'indexing' ? 'Document Indexing' : activeTab === 'extracted' ? 'Extracted Values Editor' : 'System Settings'}
               </h1>
               <p className="text-sm text-slate-500 mt-1 max-w-2xl">
                 {activeTab === 'users'
                   ? 'Control access levels and operator status.'
                   : activeTab === 'doctypes' ? 'Configure classifications available for the AI and HITL workforce.'
                   : activeTab === 'checklists' ? 'Manage global checklist requirements applicable to all documents.'
+                  : activeTab === 'indexing' ? 'Rename document types across all blobs with per-blob workspace view.'
+                  : activeTab === 'extracted' ? 'View and update extracted field values for any document.'
                   : 'Configure global system parameters including storage providers.'}
               </p>
             </div>
@@ -102,6 +117,8 @@ export default function AdminPage() {
           {activeTab === 'doctypes' && <DocTypeManagement />}
           {activeTab === 'checklists' && <ChecklistManagement />}
           {activeTab === 'processing' && <ProcessingAdmin />}
+          {activeTab === 'indexing' && <DocumentIndexing />}
+          {activeTab === 'extracted' && <ExtractedValuesEditor />}
           {activeTab === 'settings' && <SystemSettings />}
         </div>
       </main>
@@ -868,6 +885,527 @@ function SystemSettings() {
           </button>
         </div>
       </form>
+    </div>
+  )
+}
+
+// ── Document Indexing Sub-Page (Per-Blob Workspace View) ──
+
+function DocumentIndexing() {
+  const [blobs, setBlobs] = useState([])
+  const [selectedBlobId, setSelectedBlobId] = useState('')
+  const [blobDocuments, setBlobDocuments] = useState([])
+  const [blobInfo, setBlobInfo] = useState(null)
+  const [docTypes, setDocTypes] = useState([])
+  const [searchQuery, setSearchQuery] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [savingDocId, setSavingDocId] = useState(null)
+  const [editCache, setEditCache] = useState({})
+
+  useEffect(() => {
+    fetchConfiguredDocTypes().then(({ data }) => setDocTypes(data.data || []))
+    loadBlobs()
+  }, [])
+
+  const loadBlobs = async (search) => {
+    setLoading(true)
+    try {
+      const { data } = await fetchAdminBlobs({ search: search || undefined, limit: 100 })
+      setBlobs(data.data || [])
+    } catch (err) {
+      console.error('Failed to load blobs:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSearch = (e) => {
+    e.preventDefault()
+    loadBlobs(searchQuery)
+  }
+
+  const loadBlobDocuments = async (blobId) => {
+    if (!blobId) {
+      setBlobDocuments([])
+      setBlobInfo(null)
+      return
+    }
+    setLoading(true)
+    try {
+      const { data } = await fetchAdminBlobDocuments(blobId)
+      setBlobInfo(data.data.blob)
+      setBlobDocuments(data.data.documents || [])
+      setEditCache({})
+    } catch (err) {
+      console.error('Failed to load blob documents:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleBlobSelect = (blobId) => {
+    setSelectedBlobId(blobId)
+    loadBlobDocuments(blobId)
+  }
+
+  const handleFieldChange = (docId, field, value) => {
+    setEditCache(prev => ({
+      ...prev,
+      [docId]: { ...(prev[docId] || {}), [field]: value }
+    }))
+  }
+
+  const handleSaveDocument = async (docId) => {
+    const changes = editCache[docId]
+    if (!changes || Object.keys(changes).length === 0) return
+
+    setSavingDocId(docId)
+    try {
+      const payload = {}
+      if (changes.name !== undefined) payload.name = changes.name
+      if (changes.documentType !== undefined) payload.documentType = changes.documentType
+
+      await adminRenameDocument(docId, payload)
+
+      setBlobDocuments(prev => prev.map(d => {
+        if (d.id !== docId) return d
+        return { ...d, ...(payload.name !== undefined && { name: payload.name }), ...(payload.documentType !== undefined && { documentType: payload.documentType }) }
+      }))
+
+      setEditCache(prev => {
+        const next = { ...prev }
+        delete next[docId]
+        return next
+      })
+    } catch (err) {
+      alert('Failed to save: ' + (err.response?.data?.error || err.message))
+    } finally {
+      setSavingDocId(null)
+    }
+  }
+
+  const getPageRange = (doc) => {
+    if (!doc.pages || doc.pages.length === 0) return { from: '—', to: '—' }
+    const sorted = [...doc.pages].sort((a, b) => a.order - b.order)
+    const firstIdx = sorted[0]?.page?.pageIndex ?? 0
+    const lastIdx = sorted[sorted.length - 1]?.page?.pageIndex ?? 0
+    return { from: firstIdx + 1, to: lastIdx + 1 }
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Blob Selector */}
+      <div className="flex items-center gap-4">
+        <form onSubmit={handleSearch} className="flex-1 flex gap-3">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+            <input
+              type="text"
+              placeholder="Search blobs by filename or batch number..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="w-full bg-surface-800/50 border dark:border-white/5 border-black/5 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:border-indigo-500/50 outline-none transition-all"
+            />
+          </div>
+          <button type="submit" className="btn-primary text-xs">Search</button>
+        </form>
+        <div className="flex-1 max-w-md">
+          <select
+            value={selectedBlobId}
+            onChange={e => handleBlobSelect(e.target.value)}
+            className="w-full bg-surface-800/50 border dark:border-white/5 border-black/5 rounded-xl px-4 py-2.5 text-sm focus:border-indigo-500/50 outline-none transition-all appearance-none cursor-pointer"
+          >
+            <option value="">Select a blob...</option>
+            {blobs.map(b => (
+              <option key={b.id} value={b.id}>
+                {b.filename} {b.batchNo ? `(${b.batchNo})` : ''} — {b._count.documents} docs, {b._count.pages} pages
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Blob Info */}
+      {blobInfo && (
+        <div className="p-4 rounded-xl bg-indigo-500/5 border border-indigo-500/10 flex items-center gap-6">
+          <div>
+            <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Blob</p>
+            <p className="text-sm font-semibold text-white">{blobInfo.filename}</p>
+          </div>
+          {blobInfo.batchNo && (
+            <div>
+              <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Batch</p>
+              <p className="text-sm font-semibold text-white">{blobInfo.batchNo}</p>
+            </div>
+          )}
+          <div>
+            <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Pages</p>
+            <p className="text-sm font-semibold text-white">{blobInfo.pageCount}</p>
+          </div>
+          <div>
+            <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Status</p>
+            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${blobInfo.status === 'COMPLETED' ? 'bg-emerald-500/20 text-emerald-400' : blobInfo.status === 'FAILED' ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'}`}>
+              {blobInfo.status}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Documents Table */}
+      {loading && (
+        <div className="text-center py-12 text-slate-500">Loading...</div>
+      )}
+
+      {!loading && selectedBlobId && blobDocuments.length === 0 && (
+        <div className="text-center py-12 border border-dashed dark:border-white/10 border-black/10 rounded-2xl">
+          <FileText className="w-8 h-8 text-slate-500 mx-auto mb-3 opacity-50" />
+          <p className="text-sm text-slate-400">No documents found for this blob.</p>
+        </div>
+      )}
+
+      {!loading && blobDocuments.length > 0 && (
+        <div className="overflow-hidden rounded-2xl border dark:border-white/5 border-black/5 bg-surface-900/30">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-white/5 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+              <tr>
+                <th className="px-6 py-4">Document Name</th>
+                <th className="px-6 py-4">Document Type</th>
+                <th className="px-6 py-4 text-center">Pages</th>
+                <th className="px-6 py-4">Status</th>
+                <th className="px-6 py-4 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {blobDocuments.map(doc => {
+                const cache = editCache[doc.id] || {}
+                const range = getPageRange(doc)
+                const isDirty = Object.keys(cache).length > 0
+                return (
+                  <tr key={doc.id} className={`group hover:bg-white/5 transition-colors ${isDirty ? 'bg-indigo-500/5' : ''}`}>
+                    <td className="px-6 py-4">
+                      <input
+                        value={cache.name !== undefined ? cache.name : doc.name}
+                        onChange={e => handleFieldChange(doc.id, 'name', e.target.value)}
+                        className="w-full bg-transparent border border-transparent rounded-lg px-3 py-1.5 text-sm font-medium text-white focus:border-indigo-500/50 focus:bg-surface-800 outline-none transition-all"
+                      />
+                    </td>
+                    <td className="px-6 py-4">
+                      <select
+                        value={cache.documentType !== undefined ? cache.documentType : doc.documentType}
+                        onChange={e => handleFieldChange(doc.id, 'documentType', e.target.value)}
+                        className="w-full bg-surface-800/50 border dark:border-white/10 border-black/10 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-300 outline-none focus:border-indigo-500 transition-all appearance-none cursor-pointer"
+                      >
+                        {docTypes.map(t => (
+                          <option key={t.code} value={t.code}>{t.label}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="px-6 py-4 text-center text-xs text-slate-400 font-mono">
+                      {range.from} — {range.to}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${doc.status === 'HUMAN_VERIFIED' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                        {doc.status === 'HUMAN_VERIFIED' ? 'Verified' : 'AI'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <button
+                        onClick={() => handleSaveDocument(doc.id)}
+                        disabled={!isDirty || savingDocId === doc.id}
+                        className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${isDirty ? 'bg-indigo-600 text-white hover:bg-indigo-500 shadow-lg shadow-indigo-600/20' : 'bg-white/5 text-slate-600 cursor-not-allowed'}`}
+                      >
+                        {savingDocId === doc.id ? 'Saving...' : 'Save'}
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Extracted Values Editor Sub-Page ──
+
+function ExtractedValuesEditor() {
+  const [blobs, setBlobs] = useState([])
+  const [selectedBlobId, setSelectedBlobId] = useState('')
+  const [documents, setDocuments] = useState([])
+  const [selectedDocId, setSelectedDocId] = useState('')
+  const [blobInfo, setBlobInfo] = useState(null)
+  const [docTypes, setDocTypes] = useState([])
+  const [searchQuery, setSearchQuery] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [fields, setFields] = useState({})
+  const [newFieldName, setNewFieldName] = useState('')
+  const { showToast } = useToastStore()
+
+  useEffect(() => {
+    fetchConfiguredDocTypes().then(({ data }) => setDocTypes(data.data || []))
+    loadBlobs()
+  }, [])
+
+  const loadBlobs = async (search) => {
+    setLoading(true)
+    try {
+      const { data } = await fetchAdminBlobs({ search: search || undefined, limit: 100 })
+      setBlobs(data.data || [])
+    } catch (err) {
+      console.error('Failed to load blobs:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSearch = (e) => {
+    e.preventDefault()
+    loadBlobs(searchQuery)
+  }
+
+  const loadBlobDocuments = async (blobId) => {
+    if (!blobId) {
+      setDocuments([])
+      setBlobInfo(null)
+      setSelectedDocId('')
+      setFields({})
+      return
+    }
+    setLoading(true)
+    try {
+      const { data } = await fetchAdminBlobDocuments(blobId)
+      setBlobInfo(data.data.blob)
+      setDocuments(data.data.documents || [])
+      setSelectedDocId('')
+      setFields({})
+    } catch (err) {
+      console.error('Failed to load blob documents:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleBlobSelect = (blobId) => {
+    setSelectedBlobId(blobId)
+    loadBlobDocuments(blobId)
+  }
+
+  const loadDocumentExtractedData = (docId) => {
+    setSelectedDocId(docId)
+    const doc = documents.find(d => d.id === docId)
+    if (!doc) {
+      setFields({})
+      return
+    }
+
+    const combined = doc.pages?.reduce((acc, dp) => {
+      if (dp.page?.extractedValues?.length) {
+        dp.page.extractedValues.forEach(ev => {
+          acc[ev.fieldName] = ev.extractedValue;
+        });
+      }
+      return acc;
+    }, {}) || {}
+
+    setFields(combined)
+  }
+
+  const handleFieldChange = (key, value) => {
+    setFields(prev => ({ ...prev, [key]: value }))
+  }
+
+  const handleAddField = () => {
+    if (!newFieldName.trim()) return
+    const key = newFieldName.trim().replace(/\s+/g, '_')
+    setFields(prev => ({ ...prev, [key]: '' }))
+    setNewFieldName('')
+  }
+
+  const handleDeleteField = (key) => {
+    setFields(prev => {
+      const next = { ...prev }
+      delete next[key]
+      return next
+    })
+  }
+
+  const handleSave = async () => {
+    if (!selectedDocId) return
+    setSaving(true)
+    try {
+      await adminUpdateExtractedData(selectedDocId, { extractedData: fields })
+      showToast('Extracted values saved successfully', 'success')
+    } catch (err) {
+      alert('Failed to save: ' + (err.response?.data?.error || err.message))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const selectedDoc = documents.find(d => d.id === selectedDocId)
+
+  return (
+    <div className="space-y-6">
+      {/* Blob & Document Selectors */}
+      <div className="flex items-center gap-4 flex-wrap">
+        <form onSubmit={handleSearch} className="flex gap-3 flex-1 min-w-[300px]">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+            <input
+              type="text"
+              placeholder="Search blobs..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="w-full bg-surface-800/50 border dark:border-white/5 border-black/5 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:border-indigo-500/50 outline-none transition-all"
+            />
+          </div>
+          <button type="submit" className="btn-primary text-xs">Search</button>
+        </form>
+        <select
+          value={selectedBlobId}
+          onChange={e => handleBlobSelect(e.target.value)}
+          className="flex-1 min-w-[250px] bg-surface-800/50 border dark:border-white/5 border-black/5 rounded-xl px-4 py-2.5 text-sm focus:border-indigo-500/50 outline-none transition-all appearance-none cursor-pointer"
+        >
+          <option value="">Select a blob...</option>
+          {blobs.map(b => (
+            <option key={b.id} value={b.id}>
+              {b.filename} {b.batchNo ? `(${b.batchNo})` : ''} — {b._count.documents} docs
+            </option>
+          ))}
+        </select>
+        <select
+          value={selectedDocId}
+          onChange={e => loadDocumentExtractedData(e.target.value)}
+          disabled={!selectedBlobId}
+          className="flex-1 min-w-[250px] bg-surface-800/50 border dark:border-white/5 border-black/5 rounded-xl px-4 py-2.5 text-sm focus:border-indigo-500/50 outline-none transition-all appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <option value="">Select a document...</option>
+          {documents.map(d => (
+            <option key={d.id} value={d.id}>{d.name} ({d.documentType})</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Blob Info */}
+      {blobInfo && (
+        <div className="p-4 rounded-xl bg-indigo-500/5 border border-indigo-500/10 flex items-center gap-6">
+          <div>
+            <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Blob</p>
+            <p className="text-sm font-semibold text-white">{blobInfo.filename}</p>
+          </div>
+          {blobInfo.batchNo && (
+            <div>
+              <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Batch</p>
+              <p className="text-sm font-semibold text-white">{blobInfo.batchNo}</p>
+            </div>
+          )}
+          <div>
+            <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Status</p>
+            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${blobInfo.status === 'COMPLETED' ? 'bg-emerald-500/20 text-emerald-400' : blobInfo.status === 'FAILED' ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'}`}>
+              {blobInfo.status}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Loading */}
+      {loading && (
+        <div className="text-center py-12 text-slate-500">Loading...</div>
+      )}
+
+      {/* Empty State */}
+      {!loading && selectedDocId && Object.keys(fields).length === 0 && (
+        <div className="text-center py-12 border border-dashed dark:border-white/10 border-black/10 rounded-2xl">
+          <FileJson className="w-8 h-8 text-slate-500 mx-auto mb-3 opacity-50" />
+          <p className="text-sm text-slate-400">No extracted values found for this document.</p>
+          <p className="text-xs text-slate-500 mt-1">Add fields below to create extracted data.</p>
+        </div>
+      )}
+
+      {/* Extracted Fields Editor */}
+      {!loading && selectedDocId && (
+        <div className="space-y-4">
+          {selectedDoc && (
+            <div className="p-4 rounded-xl bg-surface-900/30 border dark:border-white/5 border-black/5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Editing Document</p>
+                  <p className="text-sm font-semibold text-white mt-1">{selectedDoc.name}</p>
+                  <p className="text-xs text-slate-400">Type: {selectedDoc.documentType}</p>
+                </div>
+                <span className="text-xs text-slate-500">{Object.keys(fields).length} fields</span>
+              </div>
+            </div>
+          )}
+
+          {/* Fields */}
+          <div className="rounded-2xl border dark:border-white/5 border-black/5 bg-surface-900/30 overflow-hidden">
+            <div className="bg-white/5 text-[10px] font-bold text-slate-500 uppercase tracking-widest grid grid-cols-[1fr_1fr_80px] px-6 py-3">
+              <span>Field Name</span>
+              <span>Value</span>
+              <span className="text-right">Actions</span>
+            </div>
+            <div className="divide-y divide-white/5">
+              {Object.entries(fields).map(([key, value]) => (
+                <div key={key} className="grid grid-cols-[1fr_1fr_80px] items-center px-6 py-3 hover:bg-white/5 transition-colors group">
+                  <span className="text-xs font-mono text-slate-300 pr-4 truncate">{key.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}</span>
+                  <input
+                    value={String(value ?? '')}
+                    onChange={e => handleFieldChange(key, e.target.value)}
+                    className="w-full bg-surface-800/50 border dark:border-white/10 border-black/10 rounded-lg px-3 py-1.5 text-sm text-white outline-none focus:border-indigo-500/50 transition-all"
+                  />
+                  <div className="text-right">
+                    <button
+                      onClick={() => handleDeleteField(key)}
+                      className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                      title="Delete field"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Add Field */}
+          <div className="flex gap-3">
+            <input
+              value={newFieldName}
+              onChange={e => setNewFieldName(e.target.value)}
+              placeholder="New field name..."
+              className="flex-1 max-w-sm bg-surface-800/50 border dark:border-white/5 border-black/5 rounded-xl px-4 py-2.5 text-sm focus:border-indigo-500/50 outline-none transition-all"
+              onKeyDown={e => e.key === 'Enter' && handleAddField()}
+            />
+            <button onClick={handleAddField} className="px-4 py-2 rounded-xl bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white text-sm font-medium transition-all">
+              <Plus className="w-4 h-4 inline mr-1" /> Add Field
+            </button>
+          </div>
+
+          {/* Save */}
+          <div className="flex justify-end pt-4 border-t dark:border-white/5 border-black/5">
+            <button
+              onClick={handleSave}
+              disabled={saving || !selectedDocId}
+              className="px-8 py-3 rounded-xl bg-indigo-600 text-white hover:bg-indigo-500 shadow-lg shadow-indigo-600/20 transition-all text-sm font-bold disabled:opacity-50"
+            >
+              {saving ? 'Saving...' : 'Save Extracted Values'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* No blob selected state */}
+      {!loading && !selectedBlobId && (
+        <div className="text-center py-16 border border-dashed dark:border-white/10 border-black/10 rounded-2xl">
+          <FileJson className="w-10 h-10 text-slate-500 mx-auto mb-3 opacity-50" />
+          <p className="text-sm text-slate-400">Select a blob to view and edit extracted values.</p>
+          <p className="text-xs text-slate-500 mt-1">Choose a blob from the dropdown above to get started.</p>
+        </div>
+      )}
     </div>
   )
 }

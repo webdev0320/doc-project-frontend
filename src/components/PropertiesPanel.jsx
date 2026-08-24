@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { fetchConfiguredDocTypes } from '../api/client'
+import { fetchConfiguredDocTypes, fetchDocumentExtractedValues } from '../api/client'
 import useWorkspaceStore from '../store/workspaceStore'
 import { CheckCircle2, ChevronDown, FileText, Layers, Merge, AlertTriangle, List, Square, FileJson, Download } from 'lucide-react'
 import useToastStore from '../store/toastStore'
@@ -25,6 +25,9 @@ export default function PropertiesPanel() {
   const [showRawJson, setShowRawJson] = useState(false)
   const [qaValues, setQaValues] = useState({})
   const [savingValues, setSavingValues] = useState(false)
+  const [modalDocFilter, setModalDocFilter] = useState('')
+  const [modalExtractedValues, setModalExtractedValues] = useState([])
+  const [loadingModal, setLoadingModal] = useState(false)
 
   useEffect(() => {
     fetchConfiguredDocTypes()
@@ -32,31 +35,28 @@ export default function PropertiesPanel() {
       .catch(err => console.error('Error fetching doc types:', err))
   }, [])
 
-  // Combine and flatten extracted data from all pages
-  const combinedExtractedData = doc?.pages?.reduce((acc, dp) => {
-    if (dp.page?.extractedData) {
-      try {
-        const data = typeof dp.page.extractedData === 'string' 
-          ? JSON.parse(dp.page.extractedData) 
-          : dp.page.extractedData;
-        
-        const flatten = (obj, prefix = '') => {
-          return Object.keys(obj).reduce((r, k) => {
-            const key = prefix ? `${prefix}_${k}` : k;
-            if (typeof obj[k] === 'object' && obj[k] !== null && !Array.isArray(obj[k])) {
-              Object.assign(r, flatten(obj[k], key));
-            } else {
-              r[key] = obj[k];
-            }
-            return r;
-          }, {});
-        };
-
-        return { ...acc, ...flatten(data) };
-      } catch (e) { return acc }
+  // Combine extracted values from all pages of the document
+  const combinedExtractedData = (() => {
+    const acc = {};
+    if (doc?.pages) {
+      doc.pages.forEach(dp => {
+        dp.page?.extractedValues?.forEach(ev => {
+          acc[ev.fieldName] = ev.extractedValue;
+        });
+      });
     }
-    return acc
-  }, {}) || {}
+    // Fallback: read from blob.pages
+    if (Object.keys(acc).length === 0 && blob?.pages) {
+      const docPageIds = new Set(doc?.pages?.map(dp => dp.pageId) || []);
+      blob.pages.forEach(pg => {
+        if (doc && !docPageIds.has(pg.id)) return;
+        pg.extractedValues?.forEach(ev => {
+          acc[ev.fieldName] = ev.extractedValue;
+        });
+      });
+    }
+    return acc;
+  })()
 
   // Local state for all fields (AI + Custom) to allow editing
   const [fields, setFields] = useState({})
@@ -66,31 +66,18 @@ export default function PropertiesPanel() {
     if (doc) {
       setFields({ ...combinedExtractedData })
     } else if (page) {
-      try {
-        const pData = typeof page.extractedData === 'string' 
-          ? JSON.parse(page.extractedData) 
-          : (page.extractedData || {});
-        
-        const flatten = (obj, prefix = '') => {
-          if (!obj || typeof obj !== 'object') return {};
-          return Object.keys(obj).reduce((r, k) => {
-            const key = prefix ? `${prefix}_${k}` : k;
-            if (typeof obj[k] === 'object' && obj[k] !== null && !Array.isArray(obj[k])) {
-              Object.assign(r, flatten(obj[k], key));
-            } else {
-              r[key] = obj[k];
-            }
-            return r;
-          }, {});
-        };
-        setFields(flatten(pData));
-      } catch (e) {
-        setFields({});
+      // Build fields from extractedValues
+      const pageFields = {};
+      if (page.extractedValues?.length) {
+        page.extractedValues.forEach(ev => {
+          pageFields[ev.fieldName] = ev.extractedValue;
+        });
       }
+      setFields(pageFields);
     } else {
       setFields({});
     }
-  }, [doc?.id, page?.id, page?.extractedData])
+  }, [doc?.id, page?.id])
 
   // Map each flattened field key -> page number(s) where the value was extracted
   const fieldPageMap = (() => {
@@ -103,29 +90,22 @@ export default function PropertiesPanel() {
     if (doc) {
       const docPagesSorted = [...doc.pages].sort((a, b) => a.order - b.order)
       docPagesSorted.forEach(dp => {
-        if (!dp.page?.extractedData) return
-        try {
-          const data = typeof dp.page.extractedData === 'string'
-            ? JSON.parse(dp.page.extractedData)
-            : dp.page.extractedData
-
+        dp.page?.extractedValues?.forEach(ev => {
           const pageNum = (pages.find(p => p.id === dp.pageId)?.originalIndex ?? 0) + 1
-
-          const flatten = (obj, prefix = '') => {
-            return Object.keys(obj).reduce((r, k) => {
-              const key = prefix ? `${prefix}_${k}` : k
-              if (typeof obj[k] === 'object' && obj[k] !== null && !Array.isArray(obj[k])) {
-                Object.assign(r, flatten(obj[k], key))
-              } else {
-                r[key] = obj[k]
-              }
-              return r
-            }, {})
-          }
-
-          Object.keys(flatten(data)).forEach(key => record(key, pageNum))
-        } catch (e) {}
+          record(ev.fieldName, pageNum)
+        })
       })
+      // Fallback: if no values found from doc.pages, try blob.pages
+      if (Object.keys(map).length === 0 && blob?.pages) {
+        const docPageIds = new Set(doc.pages.map(dp => dp.pageId))
+        blob.pages.forEach(pg => {
+          if (!docPageIds.has(pg.id)) return
+          pg.extractedValues?.forEach(ev => {
+            const pageNum = (pages.find(p => p.id === pg.id)?.originalIndex ?? 0) + 1
+            record(ev.fieldName, pageNum)
+          })
+        })
+      }
     } else if (page) {
       const pageNum = (page.originalIndex ?? pages.findIndex(p => p.id === page.id)) + 1
       Object.keys(fields).forEach(key => record(key, pageNum))
@@ -135,6 +115,7 @@ export default function PropertiesPanel() {
 
   useEffect(() => {
     if (doc) { setDocType(doc.documentType || ''); setDocName(doc.name || '') }
+    setModalDocFilter('')
   }, [doc?.id])
 
 
@@ -211,15 +192,38 @@ export default function PropertiesPanel() {
     showToast('Document data exported successfully', 'success')
   }
 
-  const openExtractedValues = () => {
-    setQaValues(Object.fromEntries(Object.entries(fields).map(([k, v]) => [k, String(v ?? '')])))
+  const openExtractedValues = async () => {
+    if (!doc) return
     setShowRawJson(true)
+    setLoadingModal(true)
+    try {
+      const { data } = await fetchDocumentExtractedValues(doc.id)
+      const values = data?.data?.extractedValues || []
+      setModalExtractedValues(values)
+
+      // Build QA values from fetched data
+      const qa = {};
+      values.forEach(ev => {
+        qa[ev.fieldName] = ev.qaValue ?? String(ev.extractedValue ?? '');
+      });
+      // Merge with current fields for any missing keys
+      Object.entries(fields).forEach(([k, v]) => {
+        if (!(k in qa)) qa[k] = String(v ?? '');
+      });
+      setQaValues(qa);
+    } catch (e) {
+      console.error('Failed to fetch extracted values:', e)
+      setModalExtractedValues([])
+    } finally {
+      setLoadingModal(false)
+    }
   }
 
   const handleSaveValues = async (closeAfter) => {
     if (!doc) return
     setSavingValues(true)
     try {
+      // Send the merged fields as extractedData + qaValues for the QA override
       const merged = { ...fields, ...qaValues }
       setFields(merged)
       await verifyDocument(doc.id, docType, docName, merged)
@@ -277,10 +281,10 @@ export default function PropertiesPanel() {
           </Section>
         )}
 
-        {/* ── Verification Checklist (Document-wide) ── */}
+        {/* ── Verification Checklist ── */}
         {doc && (
           <Section title="Verification Checklist" icon={<List className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />}>
-              <div className="flex items-center justify-between mb-3 border-b border-main pb-2">
+              <div className="flex items-center justify-between border-b border-main pb-2">
                  <span className="text-[10px] font-bold text-muted uppercase tracking-widest">Extracted Fields</span>
                  <div className="flex items-center gap-3">
                     <button 
@@ -299,46 +303,75 @@ export default function PropertiesPanel() {
                     </button>
                  </div>
               </div>
-
           </Section>
         )}
-        <Section title="Documents" icon={<Layers className="w-3.5 h-3.5" />}>
-          <div className="space-y-4">
+
+        {/* ── Classifications ── */}
+        <Section title="Classifications" icon={<Layers className="w-3.5 h-3.5" />}>
+          {documents.length > 0 && (
+            <div className="flex items-center gap-3 mb-3 pb-3 border-b border-main">
+              <div className="text-center px-2">
+                <p className="text-lg font-bold text-indigo-400">{documents.length}</p>
+                <p className="text-[9px] text-muted uppercase tracking-widest">Docs</p>
+              </div>
+              <div className="w-px h-8 bg-main" />
+              <div className="text-center px-2">
+                <p className="text-lg font-bold text-indigo-400">{pages.length}</p>
+                <p className="text-[9px] text-muted uppercase tracking-widest">Pages</p>
+              </div>
+            </div>
+          )}
+          <div className="space-y-1">
             <button
-              onClick={() => { setFilterLabel(null); selectDocument(null) }}
+              onClick={() => setFilterLabel(null)}
               className={`
-                w-full text-left px-2 py-1 rounded text-[10px] font-bold uppercase tracking-widest transition-colors
-                ${filterLabel === null && !selectedDocumentId
+                w-full text-left px-2 py-1.5 rounded text-[10px] font-bold uppercase tracking-widest transition-colors mb-2
+                ${!filterLabel
                   ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-500/10' 
                   : 'text-muted hover:text-indigo-500'}
               `}
             >
               Show All
             </button>
-            {documents.length > 0 ? documents.map((d) => (
-              <button
-                key={d.id}
-                id={`doc-select-${d.id}`}
-                onClick={() => selectDocument(d.id)}
-                className={`
-                  w-full text-left px-3 py-2 rounded-lg text-xs transition-all duration-150 border
-                  ${d.id === selectedDocumentId
-                    ? 'bg-indigo-600/10 dark:bg-indigo-600/20 border-indigo-500/40 text-indigo-200'
-                    : 'bg-surface-700 border-main text-muted hover:dark:border-white/20 border-black/20'}
-                `}
-              >
-                <p className="font-medium truncate text-main">{d.name}</p>
-                <p className="text-muted mt-0.5">{d.documentType} · {d.pages?.length ?? 0}p</p>
-              </button>
-            )) : (
-              <p className="text-[10px] text-muted italic px-1">No documents found.</p>
-            )}
+            {(() => {
+              if (documents.length === 0) {
+                return <p className="text-[10px] text-muted italic px-1 py-4 text-center">No documents found.</p>
+              }
+              const typeMap = {}
+              documents.forEach(d => {
+                const type = d.documentType || 'Unclassified'
+                if (!typeMap[type]) typeMap[type] = 0
+                typeMap[type] += d.pages?.length ?? 0
+              })
+              const sorted = Object.entries(typeMap).sort((a, b) => a[0].localeCompare(b[0]))
+              return sorted.map(([type, count]) => {
+                const isActive = filterLabel === type
+                const displayName = type.replace(/_/g, ' ')
+                return (
+                  <button
+                    key={type}
+                    onClick={() => setFilterLabel(isActive ? null : type)}
+                    className={`
+                      w-full text-left px-3 py-2 rounded-lg text-xs transition-all duration-150
+                      ${isActive
+                        ? 'bg-indigo-600/15 dark:bg-indigo-600/25 text-indigo-200'
+                        : 'text-muted hover:bg-white/5 hover:text-main'}
+                    `}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="break-words">{displayName}</span>
+                      <span className={`shrink-0 text-[10px] font-mono ${isActive ? 'text-indigo-300' : 'text-muted'}`}>
+                        {count}p
+                      </span>
+                    </div>
+                  </button>
+                )
+              })
+            })()}
           </div>
         </Section>
 
-        {/* ── Document Checklist ── */}
-
-        {/* ── Document Editor ── */}
+        {/* ── Edit Document ── */}
         {doc && (
           <Section title="Edit Document" icon={<FileText className="w-3.5 h-3.5" />}>
             <label className="block text-[10px] font-bold text-muted uppercase tracking-widest mb-2">Classification</label>
@@ -442,8 +475,32 @@ export default function PropertiesPanel() {
           >
             {/* Header */}
             <div className="flex items-center justify-between gap-4 px-6 pt-5 pb-4">
-              <h3 className="text-[15px] font-semibold text-[#334155] dark:text-slate-100">Note</h3>
+              <h3 className="text-[15px] font-semibold text-[#334155] dark:text-slate-100">Extracted Values</h3>
               <div className="flex items-center gap-2 shrink-0">
+                {/* Document Name dropdown filter */}
+                {(() => {
+                  const docNames = new Set();
+                  modalExtractedValues.forEach(ev => {
+                    if (ev.documentName) docNames.add(ev.documentName);
+                  });
+                  if (docNames.size === 0) return null;
+                  const sorted = [...docNames].sort();
+                  return (
+                    <div className="relative">
+                      <select
+                        value={modalDocFilter}
+                        onChange={e => setModalDocFilter(e.target.value)}
+                        className="px-3 py-1 pr-7 rounded-md bg-[#F4F5FC] dark:bg-slate-800 text-[11px] font-medium text-[#5B6B82] dark:text-slate-300 border border-[#D3D3D3] dark:border-slate-600 appearance-none cursor-pointer"
+                      >
+                        <option value="">All Documents</option>
+                        {sorted.map(name => (
+                          <option key={name} value={name}>{name}</option>
+                        ))}
+                      </select>
+                      <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-[#5B6B82] dark:text-slate-400 pointer-events-none" />
+                    </div>
+                  );
+                })()}
                 <span className="px-3 py-1 rounded-md bg-[#F4F5FC] dark:bg-slate-800 text-[11px] font-medium text-[#5B6B82] dark:text-slate-300">
                   Task Status: {blob?.status || '—'}
                 </span>
@@ -455,31 +512,61 @@ export default function PropertiesPanel() {
 
             {/* Column headers */}
             <div className="flex items-center px-6 py-2 bg-[#F3F5FF] dark:bg-slate-800/50">
-              <span className="flex-1 text-[11px] font-semibold uppercase tracking-wider text-[#7C8CA0] dark:text-slate-400">Name</span>
-              <span className="w-56 text-[11px] font-semibold uppercase tracking-wider text-[#7C8CA0] dark:text-slate-400">OCRValue</span>
-              <span className="w-56 text-[11px] font-semibold uppercase tracking-wider text-[#7C8CA0] dark:text-slate-400">Seller Data</span>
+              <span className="flex-1 text-[11px] font-semibold uppercase tracking-wider text-[#7C8CA0] dark:text-slate-400">Document Name</span>
+              <span className="flex-1 text-[11px] font-semibold uppercase tracking-wider text-[#7C8CA0] dark:text-slate-400">Field Name</span>
+              <span className="w-56 text-[11px] font-semibold uppercase tracking-wider text-[#7C8CA0] dark:text-slate-400">Extracted Value</span>
               <span className="w-56 text-[11px] font-semibold uppercase tracking-wider text-[#7C8CA0] dark:text-slate-400">QA Value</span>
             </div>
 
             {/* Value rows */}
             <div className="flex-1 overflow-y-auto">
-              {(() => {
-                const entries = Object.entries(fields)
+              {loadingModal ? (
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 italic px-6 py-4">Loading extracted values...</p>
+              ) : (() => {
                 if (!doc) return <p className="text-[11px] text-slate-500 dark:text-slate-400 italic px-6 py-4">Select a document to see its extracted values.</p>
-                if (entries.length === 0) return <p className="text-[11px] text-slate-500 dark:text-slate-400 italic px-6 py-4">No extracted values available for this document.</p>
-                return entries.map(([k, v], idx) => (
+
+                // Use modalExtractedValues from API
+                let rows = modalExtractedValues.map(ev => ({
+                  documentName: ev.documentName || '—',
+                  fieldName: ev.fieldName,
+                  extractedValue: ev.extractedValue || '',
+                  qaValue: ev.qaValue ?? '',
+                }));
+
+                // Fallback: if API returned nothing, use fields dict
+                if (rows.length === 0) {
+                  Object.entries(fields).forEach(([k, v]) => {
+                    rows.push({
+                      documentName: doc.documentType || '—',
+                      fieldName: k,
+                      extractedValue: String(v ?? ''),
+                      qaValue: qaValues[k] ?? '',
+                    });
+                  });
+                }
+
+                // Apply document name filter
+                const filtered = modalDocFilter
+                  ? rows.filter(r => r.documentName === modalDocFilter)
+                  : rows;
+
+                if (filtered.length === 0) return <p className="text-[11px] text-slate-500 dark:text-slate-400 italic px-6 py-4">No extracted values available for this document.</p>
+
+                return filtered.map((row, idx) => (
                   <div
-                    key={k}
+                    key={`${row.documentName}-${row.fieldName}`}
                     className={`flex items-center px-6 py-2.5 border-b border-[#D3D3D3] dark:border-slate-700/60 ${idx % 2 === 0 ? 'bg-white dark:bg-slate-900/40' : 'bg-[#FAFAFA] dark:bg-slate-800/20'}`}
                   >
-                    <span className="flex-1 text-[13px] leading-snug text-[#5C6B7A] dark:text-slate-300 pr-6">
-                      {k.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                    <span className="flex-1 text-[13px] leading-snug text-[#5C6B7A] dark:text-slate-300 pr-6 truncate">
+                      {row.documentName}
                     </span>
-                    <span className="w-56 text-[13px] font-mono text-[#334155] dark:text-slate-200 truncate">{String(v ?? '') || '—'}</span>
-                    <span className="w-56 text-[13px] font-mono text-[#9AA8B8] dark:text-slate-500 truncate">—</span>
+                    <span className="flex-1 text-[13px] leading-snug text-[#5C6B7A] dark:text-slate-300 pr-6 truncate">
+                      {row.fieldName.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                    </span>
+                    <span className="w-56 text-[13px] font-mono text-[#334155] dark:text-slate-200 truncate">{row.extractedValue || '—'}</span>
                     <input
-                      value={qaValues[k] ?? ''}
-                      onChange={e => setQaValues(prev => ({ ...prev, [k]: e.target.value }))}
+                      value={qaValues[row.fieldName] ?? ''}
+                      onChange={e => setQaValues(prev => ({ ...prev, [row.fieldName]: e.target.value }))}
                       placeholder="—"
                       className="w-56 px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-[#D3D3D3] dark:border-slate-600 text-[12px] font-mono text-[#334155] dark:text-slate-200 outline-none focus:border-[#2E7EFA] transition-colors"
                     />
