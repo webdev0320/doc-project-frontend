@@ -31,7 +31,11 @@ const useWorkspaceStore = create((set, get) => ({
         }
         console.error(`[Workspace Load Error] Engine processing failed for blob ${blobId}:`, engineErr || 'No detailed error message found.', data.data)
       }
-      const firstPageId = data.data.pages[0]?.id ?? null
+      // Open on the first page that actually has extracted values (fall back to page 1)
+      const firstPageId =
+        data.data.pages.find((p) => p.extractedValues?.length)?.id ??
+        data.data.pages[0]?.id ??
+        null
       set({
         blob: data.data,
         pages: data.data.pages,

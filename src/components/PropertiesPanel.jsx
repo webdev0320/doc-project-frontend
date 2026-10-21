@@ -35,14 +35,17 @@ export default function PropertiesPanel() {
       .catch(err => console.error('Error fetching doc types:', err))
   }, [])
 
-  // Combine extracted values from all pages of the document
+  // Combine extracted values from the current page and all pages of the document
   const combinedExtractedData = (() => {
     const acc = {};
+    const add = (ev) => { acc[ev.fieldName] = ev.extractedValue; };
+
+    // Surface the current page's own values even when the document grouping excludes them
+    page?.extractedValues?.forEach(add);
+
     if (doc?.pages) {
       doc.pages.forEach(dp => {
-        dp.page?.extractedValues?.forEach(ev => {
-          acc[ev.fieldName] = ev.extractedValue;
-        });
+        dp.page?.extractedValues?.forEach(add);
       });
     }
     // Fallback: read from blob.pages
@@ -50,9 +53,7 @@ export default function PropertiesPanel() {
       const docPageIds = new Set(doc?.pages?.map(dp => dp.pageId) || []);
       blob.pages.forEach(pg => {
         if (doc && !docPageIds.has(pg.id)) return;
-        pg.extractedValues?.forEach(ev => {
-          acc[ev.fieldName] = ev.extractedValue;
-        });
+        pg.extractedValues?.forEach(add);
       });
     }
     return acc;
@@ -86,13 +87,19 @@ export default function PropertiesPanel() {
       if (!map[key]) map[key] = []
       if (!map[key].includes(pageNum)) map[key].push(pageNum)
     }
+    const pageNumFor = (pageId) => (pages.find(p => p.id === pageId)?.originalIndex ?? 0) + 1
+
+    // Current page's values
+    if (page?.extractedValues?.length) {
+      const pageNum = pageNumFor(page.id)
+      page.extractedValues.forEach(ev => record(ev.fieldName, pageNum))
+    }
 
     if (doc) {
       const docPagesSorted = [...doc.pages].sort((a, b) => a.order - b.order)
       docPagesSorted.forEach(dp => {
         dp.page?.extractedValues?.forEach(ev => {
-          const pageNum = (pages.find(p => p.id === dp.pageId)?.originalIndex ?? 0) + 1
-          record(ev.fieldName, pageNum)
+          record(ev.fieldName, pageNumFor(dp.pageId))
         })
       })
       // Fallback: if no values found from doc.pages, try blob.pages
@@ -101,8 +108,7 @@ export default function PropertiesPanel() {
         blob.pages.forEach(pg => {
           if (!docPageIds.has(pg.id)) return
           pg.extractedValues?.forEach(ev => {
-            const pageNum = (pages.find(p => p.id === pg.id)?.originalIndex ?? 0) + 1
-            record(ev.fieldName, pageNum)
+            record(ev.fieldName, pageNumFor(pg.id))
           })
         })
       }
