@@ -40,6 +40,7 @@ export default function LoginPage() {
               <FileText className="w-8 h-8 dark:text-white text-slate-900" />
            </div>
            <h1 className="text-3xl font-bold dark:text-white text-slate-900 tracking-tight">EasyDocs</h1>
+           <p className="text-slate-500 mt-1">Intelligent Document Processing</p>
         </div>
 
         {/* Card */}

@@ -235,7 +235,10 @@ export default function DashboardPage() {
             <div className="w-8 h-8 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-500/20">
               <FileText className="w-5 h-5 dark:text-white text-slate-900" />
             </div>
-            <span className="font-bold text-lg tracking-tight dark:text-white text-slate-900">EasyDocs</span>
+            <div className="flex flex-col leading-tight">
+              <span className="font-bold text-lg tracking-tight dark:text-white text-slate-900">EasyDocs</span>
+              <span className="text-[11px] text-muted">Intelligent Document Processing</span>
+            </div>
           </div>
 
           <div className="relative w-96">
