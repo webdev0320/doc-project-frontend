@@ -97,5 +97,13 @@ export const fetchFailedBlobs = (limit = 100) => api.get(`/admin/engine/failed-b
 // Document Indexing (Admin)
 export const fetchAdminBlobs = (params) => api.get('/admin/blobs', { params })
 export const fetchAdminBlobDocuments = (blobId) => api.get(`/admin/blobs/${blobId}/documents`)
+export const fetchAdminDocuments = (params) => api.get('/admin/documents', { params })
 export const adminRenameDocument = (docId, payload) => api.patch(`/admin/documents/${docId}/rename`, payload)
 export const adminUpdateExtractedData = (docId, payload) => api.patch(`/admin/documents/${docId}/extracted-data`, payload)
+
+// Uploaded Packages (Admin)
+export const fetchAdminPackages = (params) => api.get('/admin/packages', { params })
+export const fetchAdminPackage = (blobId) => api.get(`/admin/packages/${blobId}`)
+export const adminSetPackageAiLabels = (blobId, payload) => api.patch(`/admin/packages/${blobId}/ai-labels`, payload)
+export const adminSetPackageExtractedValues = (blobId, payload) => api.patch(`/admin/packages/${blobId}/extracted-values`, payload)
+export const adminSetPackageChecklist = (blobId, payload) => api.patch(`/admin/packages/${blobId}/missing-checklist`, payload)

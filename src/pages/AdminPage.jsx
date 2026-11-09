@@ -5,19 +5,20 @@ import {
   fetchStorageSettings, updateStorageSettings,
   fetchChecklists, createChecklist, deleteChecklist
   , fetchEngineErrors, fetchFailedBlobs,
-  fetchAdminBlobs, fetchAdminBlobDocuments, adminRenameDocument, adminUpdateExtractedData
+  fetchAdminBlobs, fetchAdminBlobDocuments, adminRenameDocument, adminUpdateExtractedData,
+  fetchAdminPackages, fetchAdminPackage, adminSetPackageAiLabels, adminSetPackageExtractedValues, adminSetPackageChecklist
 } from '../api/client'
 import {
   Users, FileStack, ShieldAlert, Plus, Trash2,
   CheckCircle, XCircle, ChevronRight, Settings,
-  ArrowLeft, Search, Mail, Server, Cloud, Edit2, X, List, FileText, FileJson
+  ArrowLeft, Search, Mail, Server, Cloud, Edit2, X, List, FileText, FileJson, Upload, Package, Tags, Download
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import useAuthStore from '../store/authStore'
 
 export default function AdminPage() {
   const navigate = useNavigate()
-  const [activeTab, setActiveTab] = useState('users') // 'users' | 'doctypes' | 'checklists' | 'processing' | 'settings' | 'indexing' | 'extracted'
+  const [activeTab, setActiveTab] = useState('users') // 'users' | 'doctypes' | 'checklists' | 'processing' | 'settings' | 'indexing' | 'extracted' | 'uploads'
   // allow 'processing' tab
 
   return (
@@ -73,8 +74,13 @@ export default function AdminPage() {
             <TabBtn
               active={activeTab === 'extracted'}
               onClick={() => setActiveTab('extracted')}
-              icon={<FileJson className="w-4 h-4" />}
-              label="Extracted Values"
+              icon={<FileJson className="w-4 h-4" />}               label="Extracted Values"
+            />
+            <TabBtn
+               active={activeTab === 'uploads'}
+               onClick={() => setActiveTab('uploads')}
+               icon={<Upload className="w-4 h-4" />}
+               label="Uploaded Packages"
             />
             <TabBtn
                active={activeTab === 'settings'}
@@ -98,7 +104,7 @@ export default function AdminPage() {
          <header className="p-8 border-b dark:border-white/5 border-black/5 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex-1 min-w-0">
               <h1 className="text-2xl font-bold dark:text-white text-slate-900 truncate">
-                {activeTab === 'users' ? 'Manage Users' : activeTab === 'doctypes' ? 'Managed Document Types' : activeTab === 'checklists' ? 'Global Checklists' : activeTab === 'indexing' ? 'Document Indexing' : activeTab === 'extracted' ? 'Extracted Values Editor' : 'System Settings'}
+                {activeTab === 'users' ? 'Manage Users' : activeTab === 'doctypes' ? 'Managed Document Types' : activeTab === 'checklists' ? 'Global Checklists' : activeTab === 'indexing' ? 'Document Indexing' : activeTab === 'extracted' ? 'Extracted Values Editor' : activeTab === 'uploads' ? 'Uploaded Packages' : 'System Settings'}
               </h1>
               <p className="text-sm text-slate-500 mt-1 max-w-2xl">
                 {activeTab === 'users'
@@ -107,6 +113,7 @@ export default function AdminPage() {
                   : activeTab === 'checklists' ? 'Manage global checklist requirements applicable to all documents.'
                   : activeTab === 'indexing' ? 'Rename document types across all blobs with per-blob workspace view.'
                   : activeTab === 'extracted' ? 'View and update extracted field values for any document.'
+                  : activeTab === 'uploads' ? 'All packages uploaded by users. Set page classifications, extracted values and the Missing Document Checklist of any package from JSON.'
                   : 'Configure global system parameters including storage providers.'}
               </p>
             </div>
@@ -119,6 +126,7 @@ export default function AdminPage() {
           {activeTab === 'processing' && <ProcessingAdmin />}
           {activeTab === 'indexing' && <DocumentIndexing />}
           {activeTab === 'extracted' && <ExtractedValuesEditor />}
+          {activeTab === 'uploads' && <UploadedPackages />}
           {activeTab === 'settings' && <SystemSettings />}
         </div>
       </main>
@@ -1125,6 +1133,1223 @@ function DocumentIndexing() {
         </div>
       )}
     </div>
+  )
+}
+
+// ── Uploaded Packages Sub-Page (one row per uploaded package / blob) ──
+
+const PKG_STATUS_STYLES = {
+  COMPLETED: 'bg-emerald-500/20 text-emerald-400',
+  FAILED: 'bg-red-500/20 text-red-400',
+  ERROR: 'bg-red-500/20 text-red-400',
+}
+
+function UploadedPackages() {
+  const navigate = useNavigate()
+  const [packages, setPackages] = useState([])
+  const [users, setUsers] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [userFilter, setUserFilter] = useState('')
+  const [page, setPage] = useState(1)
+  const [total, setTotal] = useState(0)
+  const [dialog, setDialog] = useState(null) // { kind: 'labels' | 'values' | 'checklist', pkg }
+  const limit = 50
+
+  const totalPages = Math.max(1, Math.ceil(total / limit))
+
+  useEffect(() => {
+    fetchUsers()
+      .then(({ data }) => setUsers(data.data || []))
+      .catch(() => setUsers([]))
+  }, [])
+
+  useEffect(() => { load() }, [page, userFilter])
+
+  const load = async (term) => {
+    setLoading(true)
+    try {
+      const params = { page, limit }
+      const search = (term !== undefined ? term : searchQuery).trim()
+      if (search) params.search = search
+      if (userFilter) params.userId = userFilter
+      const { data } = await fetchAdminPackages(params)
+      setPackages(data.data || [])
+      setTotal(data.total || 0)
+      setError(null)
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to load uploaded packages')
+      setPackages([])
+      setTotal(0)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSearch = (e) => {
+    e.preventDefault()
+    if (page !== 1) setPage(1)
+    else load(searchQuery)
+  }
+
+  const handleUserFilter = (value) => {
+    setUserFilter(value)
+    if (page !== 1) setPage(1)
+  }
+
+  const handleClear = () => {
+    setSearchQuery('')
+    setUserFilter('')
+    if (page !== 1) setPage(1)
+    else load('')
+  }
+
+  const from = total === 0 ? 0 : (page - 1) * limit + 1
+  const to = Math.min(page * limit, total)
+  const closeDialog = () => setDialog(null)
+
+  return (
+    <div className="space-y-6">
+      {/* Filters */}
+      <div className="flex items-center gap-4 flex-wrap">
+        <form onSubmit={handleSearch} className="flex gap-3 flex-1 min-w-[300px]">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+            <input
+              type="text"
+              placeholder="Search by file name, loan / batch no. or uploader..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="w-full bg-surface-800/50 border dark:border-white/5 border-black/5 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:border-indigo-500/50 outline-none transition-all"
+            />
+          </div>
+          <button type="submit" className="btn-primary text-xs">Search</button>
+        </form>
+
+        <select
+          value={userFilter}
+          onChange={e => handleUserFilter(e.target.value)}
+          className="min-w-[220px] bg-surface-800/50 border dark:border-white/5 border-black/5 rounded-xl px-4 py-2.5 text-sm focus:border-indigo-500/50 outline-none transition-all appearance-none cursor-pointer"
+        >
+          <option value="">All users</option>
+          {users.map(u => (
+            <option key={u.id} value={u.id}>{u.name || u.email}</option>
+          ))}
+        </select>
+
+        {(searchQuery || userFilter) && (
+          <button onClick={handleClear} className="btn-ghost text-xs">Clear</button>
+        )}
+
+        <button onClick={() => load()} className="btn-ghost text-xs">Refresh</button>
+      </div>
+
+      <div className="flex items-center gap-6 text-xs text-slate-500">
+        <span><span className="font-bold dark:text-white text-slate-900">{total}</span> packages</span>
+      </div>
+
+      {error && (
+        <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center gap-3">
+          <ShieldAlert className="w-4 h-4" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {loading && (
+        <div className="text-center py-12 text-slate-500">Loading...</div>
+      )}
+
+      {!loading && !error && packages.length === 0 && (
+        <div className="text-center py-12 border border-dashed dark:border-white/10 border-black/10 rounded-2xl">
+          <Upload className="w-8 h-8 text-slate-500 mx-auto mb-3 opacity-50" />
+          <p className="text-sm text-slate-400">No uploaded packages found.</p>
+          <p className="text-xs text-slate-500 mt-1">Packages appear here once users upload files.</p>
+        </div>
+      )}
+
+      {!loading && packages.length > 0 && (
+        <div className="overflow-x-auto rounded-2xl border dark:border-white/5 border-black/5 bg-surface-900/30">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-white/5 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+              <tr>
+                <th className="px-5 py-4">Package</th>
+                <th className="px-5 py-4">Uploaded By</th>
+                <th className="px-5 py-4 text-center">Pages</th>
+                <th className="px-5 py-4 text-center">Docs</th>
+                <th className="px-5 py-4 text-center">Values</th>
+                <th className="px-5 py-4 text-center">Checklist</th>
+                <th className="px-5 py-4">Status</th>
+                <th className="px-5 py-4">Uploaded</th>
+                <th className="px-5 py-4 text-right">Set from JSON</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {packages.map(pkg => (
+                <tr key={pkg.id} className="group hover:bg-white/5 transition-colors">
+                  <td className="px-5 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400 border border-indigo-500/20 shrink-0">
+                        <Package className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <button
+                          onClick={() => navigate(`/workspace/${pkg.id}`)}
+                          className="font-semibold dark:text-white text-slate-900 truncate max-w-[240px] block text-left hover:text-indigo-400 transition-colors"
+                          title={`Open ${pkg.filename} in the workspace`}
+                        >
+                          {pkg.filename}
+                        </button>
+                        {pkg.batchNo && <p className="text-[10px] text-slate-500 font-mono">{pkg.batchNo}</p>}
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-5 py-4">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="w-7 h-7 rounded-full bg-indigo-500/20 flex items-center justify-center text-[10px] font-bold text-indigo-400 uppercase border border-indigo-500/30 shrink-0">
+                        {pkg.user?.name?.charAt(0) || pkg.user?.email?.charAt(0) || '?'}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold dark:text-white text-slate-900 truncate">{pkg.user?.name || '—'}</p>
+                        <p className="text-[10px] text-slate-500 truncate">{pkg.user?.email}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-5 py-4 text-center text-xs text-slate-400 font-mono">{pkg._count?.pages ?? pkg.pageCount ?? 0}</td>
+                  <td className="px-5 py-4 text-center text-xs text-slate-400 font-mono">{pkg._count?.documents ?? 0}</td>
+                  <td className="px-5 py-4 text-center text-xs text-slate-400 font-mono">{pkg._count?.extractedValues ?? 0}</td>
+                  <td className="px-5 py-4 text-center text-xs font-mono">
+                    {pkg.checklistCount
+                      ? <span className="text-emerald-400">{pkg.checklistCount}</span>
+                      : <span className="text-slate-600">—</span>}
+                  </td>
+                  <td className="px-5 py-4">
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${PKG_STATUS_STYLES[pkg.status] || 'bg-amber-500/20 text-amber-400'}`}>
+                      {pkg.status}
+                    </span>
+                  </td>
+                  <td className="px-5 py-4 text-slate-500 text-[10px] font-mono whitespace-nowrap">
+                    {new Date(pkg.createdAt).toLocaleString()}
+                  </td>
+                  <td className="px-5 py-4 text-right whitespace-nowrap">
+                    <button
+                      onClick={() => setDialog({ kind: 'labels', pkg })}
+                      className="btn-ghost text-xs inline-flex items-center gap-1.5"
+                      title="Set the AI classification of this package's pages from JSON"
+                    >
+                      <Tags className="w-3.5 h-3.5" /> Classify
+                    </button>
+                    <button
+                      onClick={() => setDialog({ kind: 'values', pkg })}
+                      className="btn-ghost text-xs inline-flex items-center gap-1.5 ml-1"
+                      title="Set this package's extracted values from JSON"
+                    >
+                      <FileJson className="w-3.5 h-3.5" /> Values
+                    </button>
+                    <button
+                      onClick={() => setDialog({ kind: 'checklist', pkg })}
+                      className="btn-ghost text-xs inline-flex items-center gap-1.5 ml-1"
+                      title="Set this package's Missing Document Checklist from JSON"
+                    >
+                      <List className="w-3.5 h-3.5" /> Checklist
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {dialog?.kind === 'labels' && <PackageLabelsDialog pkg={dialog.pkg} onClose={closeDialog} onApplied={() => load()} />}
+      {dialog?.kind === 'values' && <PackageValuesDialog pkg={dialog.pkg} onClose={closeDialog} onApplied={() => load()} />}
+      {dialog?.kind === 'checklist' && <PackageChecklistDialog pkg={dialog.pkg} onClose={closeDialog} onApplied={() => load()} />}
+
+      {/* Pagination */}
+      {!loading && total > 0 && (
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-slate-500">Showing {from}–{to} of {total}</p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="px-4 py-2 rounded-xl bg-white/5 text-slate-400 hover:bg-white/10 text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Previous
+            </button>
+            <span className="text-xs text-slate-500 px-2">Page {page} of {totalPages}</span>
+            <button
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              className="px-4 py-2 rounded-xl bg-white/5 text-slate-400 hover:bg-white/10 text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Shared pieces for the package JSON dialogs ──
+
+// Loads one package (pages, documents, extracted values, checklist) for a dialog.
+function usePackageDetail(pkgId) {
+  const [detail, setDetail] = useState(undefined) // undefined = loading, null = failed
+  const reload = async () => {
+    try {
+      const { data } = await fetchAdminPackage(pkgId)
+      setDetail(data.data)
+    } catch {
+      setDetail(null)
+    }
+  }
+  useEffect(() => { reload() }, [pkgId])
+  return [detail, reload]
+}
+
+const downloadJson = (data, filename) => {
+  const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }))
+  const a = window.document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
+const fileStem = (pkg) => (pkg.batchNo || pkg.filename || 'package').replace(/\.[^.]+$/, '').replace(/[^\w.-]+/g, '_')
+
+function PackageDialogShell({ title, pkg, onClose, children }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-surface-800 border dark:border-white/10 border-black/10 rounded-2xl p-8 shadow-2xl fade-up space-y-5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h3 className="text-xl font-bold dark:text-white text-slate-900">{title}</h3>
+            <p className="text-xs text-slate-500 mt-1 truncate" title={pkg.filename}>
+              {pkg.filename}{pkg.batchNo ? ` · ${pkg.batchNo}` : ''}
+            </p>
+          </div>
+          <button onClick={onClose} className="text-muted hover:dark:text-white text-slate-900 shrink-0">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
+  )
+}
+
+// JSON input: choose a .json file or paste JSON text.
+function JsonSource({ fileName, onLoad, onError, onDownloadCurrent, downloadLabel = 'Download current as JSON' }) {
+  const [mode, setMode] = useState('file')
+  const [text, setText] = useState('')
+
+  const handleFile = async (e) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    let raw
+    try {
+      raw = JSON.parse(await file.text())
+    } catch (err) {
+      return onError(`${file.name} is not valid JSON: ${err.message}`)
+    }
+    onLoad(raw, file.name)
+  }
+
+  const handlePaste = () => {
+    let raw
+    try {
+      raw = JSON.parse(text)
+    } catch (err) {
+      return onError(`Not valid JSON: ${err.message}`)
+    }
+    onLoad(raw, 'pasted JSON')
+  }
+
+  const tabCls = (active) => `px-3 py-1.5 rounded-lg text-[11px] font-bold transition-colors ${active ? 'bg-indigo-500/15 text-indigo-400' : 'text-slate-500 hover:text-slate-300'}`
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <button type="button" onClick={() => setMode('file')} className={tabCls(mode === 'file')}>Upload file</button>
+        <button type="button" onClick={() => setMode('paste')} className={tabCls(mode === 'paste')}>Paste JSON</button>
+        {onDownloadCurrent && (
+          <button type="button" onClick={onDownloadCurrent} className="ml-auto inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-500 hover:text-indigo-400 transition-colors">
+            <Download className="w-3.5 h-3.5" /> {downloadLabel}
+          </button>
+        )}
+      </div>
+
+      {mode === 'file' ? (
+        <label className="flex items-center justify-center gap-2 w-full py-4 rounded-xl border border-dashed dark:border-white/20 border-black/15 text-xs font-bold text-slate-400 hover:border-indigo-500/60 hover:text-indigo-400 cursor-pointer transition-colors">
+          <Upload className="w-4 h-4" />
+          {fileName ? 'Choose a different JSON file' : 'Choose JSON file'}
+          <input type="file" accept="application/json,.json" className="hidden" onChange={handleFile} />
+        </label>
+      ) : (
+        <div className="space-y-2">
+          <textarea
+            value={text}
+            onChange={e => setText(e.target.value)}
+            rows={8}
+            spellCheck={false}
+            placeholder="Paste JSON here..."
+            className="w-full bg-surface-900/60 border dark:border-white/10 border-black/10 rounded-xl px-4 py-3 text-xs font-mono focus:border-indigo-500/50 outline-none"
+          />
+          <button type="button" onClick={handlePaste} disabled={!text.trim()} className="btn-primary text-xs disabled:opacity-40 disabled:cursor-not-allowed">
+            Preview
+          </button>
+        </div>
+      )}
+      {fileName && <p className="text-[11px] text-slate-400 font-mono truncate">Source: {fileName}</p>}
+    </div>
+  )
+}
+
+function DialogMessage({ tone = 'red', children }) {
+  const cls = {
+    red: 'bg-red-500/10 border-red-500/20 text-red-400',
+    amber: 'bg-amber-500/10 border-amber-500/20 text-amber-400',
+    green: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400',
+  }[tone]
+  return <div className={`p-3 rounded-xl border text-xs ${cls}`}>{children}</div>
+}
+
+function DialogActions({ onClose, onApply, canApply, applying, done, label }) {
+  return (
+    <div className="flex gap-3 pt-1">
+      <button onClick={onClose} className="flex-1 py-3 rounded-xl bg-white/5 text-slate-400 hover:bg-white/10 font-bold text-sm">
+        {done ? 'Close' : 'Cancel'}
+      </button>
+      <button
+        onClick={onApply}
+        disabled={!canApply || applying}
+        className="flex-1 py-3 rounded-xl bg-indigo-600 text-white hover:bg-indigo-500 font-bold text-sm shadow-lg shadow-indigo-600/20 disabled:opacity-40 disabled:cursor-not-allowed"
+      >
+        {applying ? 'Applying...' : done ? 'Applied' : label}
+      </button>
+    </div>
+  )
+}
+
+const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`
+
+// ── AI classification JSON (parser) ──
+
+const LABEL_KEYS = ['aiLabel', 'label', 'type', 'documentType', 'category', 'docType', 'classification', 'class']
+const PAGE_KEYS_0 = ['pageIndex', 'page_index', 'index'] // 0-based, blob-export style
+const PAGE_KEYS_1 = ['page', 'pageNo', 'page_no', 'pageNumber', 'page_number'] // 1-based, human style
+const RANGE_FROM_KEYS = ['from', 'start', 'startPage', 'pageFrom', 'firstPage']
+const RANGE_TO_KEYS = ['to', 'end', 'endPage', 'pageTo', 'lastPage']
+
+const pickLabel = (obj, keys = LABEL_KEYS) => {
+  for (const k of keys) {
+    const v = obj?.[k]
+    if (typeof v === 'string' && v.trim()) return v.trim()
+    if (typeof v === 'number') return String(v)
+  }
+  return null
+}
+
+const pickInt = (obj, keys, min) => {
+  for (const k of keys) {
+    const v = obj?.[k]
+    if (v !== undefined && v !== null && v !== '') {
+      const n = Number(v)
+      if (Number.isInteger(n) && n >= min) return n
+    }
+  }
+  return null
+}
+
+const pickPageIndex = (obj) => {
+  const zero = pickInt(obj, PAGE_KEYS_0, 0)
+  if (zero !== null) return zero
+  const one = pickInt(obj, PAGE_KEYS_1, 1)
+  return one !== null ? one - 1 : null
+}
+
+// Turns a JSON into [{ pageIndex, aiLabel }] (0-based page index in the package). Accepts:
+//   • { pages: [...] } or { data: { pages: [...] } } blob exports
+//   • an array of { pageIndex, aiLabel } / { page, label } entries
+//   • ranges: [label, from, to] tuples or { label, from, to } objects (1-based pages)
+//   • { label, pages: [1, 2, 3] } objects (1-based pages)
+//   • a flat { "3": "Label" } map (1-based keys, or 0-based if a "0" key exists)
+function toLabelUpdates(raw) {
+  const out = []
+  const push = (pageIndex, aiLabel) => {
+    if (Number.isInteger(pageIndex) && pageIndex >= 0 && aiLabel) out.push({ pageIndex, aiLabel })
+  }
+  const pushRange = (label, start, end) => {
+    if (label && Number.isInteger(start) && start >= 1 && Number.isInteger(end) && end >= start && end - start < 5000) {
+      for (let p = start; p <= end; p++) push(p - 1, label)
+    }
+  }
+
+  const container = Array.isArray(raw) ? raw
+    : Array.isArray(raw?.pages) ? raw.pages
+    : Array.isArray(raw?.data?.pages) ? raw.data.pages
+    : Array.isArray(raw?.classifications) ? raw.classifications
+    : Array.isArray(raw?.documents) ? raw.documents
+    : null
+
+  if (container) {
+    for (const item of container) {
+      if (Array.isArray(item)) {
+        const [label, from, to] = item
+        if (typeof label === 'string' && label.trim()) pushRange(label.trim(), Number(from), Number(to ?? from))
+        continue
+      }
+      if (item && typeof item === 'object') {
+        const label = pickLabel(item)
+        if (!label) continue
+        const start = pickInt(item, RANGE_FROM_KEYS, 1)
+        if (start !== null) {
+          pushRange(label, start, pickInt(item, RANGE_TO_KEYS, 1) ?? start)
+          continue
+        }
+        if (Array.isArray(item.pages)) {
+          item.pages.forEach(p => { const n = Number(p); if (Number.isInteger(n) && n >= 1) push(n - 1, label) })
+          continue
+        }
+        const idx = pickPageIndex(item)
+        if (idx !== null) push(idx, label)
+      }
+    }
+    return out
+  }
+
+  if (raw && typeof raw === 'object') {
+    const keys = Object.keys(raw)
+    const zeroBased = keys.includes('0')
+    for (const k of keys) {
+      const n = Number(k)
+      if (!Number.isInteger(n) || n < 0 || (!zeroBased && n === 0)) continue
+      const v = raw[k]
+      const label = typeof v === 'string' && v.trim()
+        ? v.trim()
+        : (v && typeof v === 'object' ? pickLabel(v) : null)
+      if (label) push(zeroBased ? n : n - 1, label)
+    }
+  }
+  return out
+}
+
+// Contiguous runs of the same label → [label, from, to] (1-based pages)
+const toLabelRuns = (pages) => {
+  const runs = []
+  for (const p of pages) {
+    const label = p.aiLabel || 'UNCLASSIFIED'
+    const last = runs[runs.length - 1]
+    if (last && last[0] === label && last[2] === p.pageIndex) last[2] = p.pageIndex + 1
+    else runs.push([label, p.pageIndex + 1, p.pageIndex + 1])
+  }
+  return runs
+}
+
+function PackageLabelsDialog({ pkg, onClose, onApplied }) {
+  const [detail, reload] = usePackageDetail(pkg.id)
+  const [fileName, setFileName] = useState('')
+  const [updates, setUpdates] = useState(null)
+  const [parseError, setParseError] = useState(null)
+  const [regroup, setRegroup] = useState(true)
+  const [applying, setApplying] = useState(false)
+  const [result, setResult] = useState(null)
+  const [error, setError] = useState(null)
+
+  const handleLoad = (raw, name) => {
+    setFileName(name)
+    setParseError(null)
+    setError(null)
+    setResult(null)
+    setUpdates(null)
+    const list = toLabelUpdates(raw)
+    if (!list.length) return setParseError('No page classifications found in this JSON')
+    const deduped = new Map()
+    list.forEach(u => deduped.set(u.pageIndex, u.aiLabel))
+    setUpdates([...deduped.entries()].sort((a, b) => a[0] - b[0]).map(([pageIndex, aiLabel]) => ({ pageIndex, aiLabel })))
+  }
+
+  const pages = detail?.pages || []
+  const pageMap = new Map(pages.map(p => [p.pageIndex, p]))
+  const rows = (updates || []).map(u => {
+    const current = pageMap.get(u.pageIndex)
+    return {
+      pageIndex: u.pageIndex,
+      current: current ? current.aiLabel : null,
+      next: u.aiLabel,
+      matched: !!current,
+      changed: !!current && (current.aiLabel || '') !== u.aiLabel,
+    }
+  })
+  const matched = rows.filter(r => r.matched)
+  const changed = matched.filter(r => r.changed)
+  const outside = rows.length - matched.length
+  const nextLabels = new Map((updates || []).map(u => [u.pageIndex, u.aiLabel]))
+  const projectedDocs = toLabelRuns(pages.map(p => ({ ...p, aiLabel: nextLabels.get(p.pageIndex) ?? p.aiLabel }))).length
+  const canApply = !!updates && !!detail && (changed.length > 0 || regroup) && !result
+  const shown = rows.slice(0, 200)
+
+  const apply = async () => {
+    setApplying(true)
+    setError(null)
+    try {
+      const { data } = await adminSetPackageAiLabels(pkg.id, { updates, regroup, source: fileName })
+      setResult(data.data)
+      reload()
+      onApplied()
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to update the page classifications')
+    } finally {
+      setApplying(false)
+    }
+  }
+
+  return (
+    <PackageDialogShell title="AI Page Classifications" pkg={pkg} onClose={onClose}>
+      <p className="text-[11px] text-slate-500 leading-relaxed">
+        Set the AI label of this package's pages. Page numbers are 1-based across the whole package unless the key is{' '}
+        <code className="text-indigo-400">pageIndex</code>. Accepted shapes: ranges{' '}
+        <code className="text-indigo-400">{'[["Note", 15, 18], ...]'}</code> or{' '}
+        <code className="text-indigo-400">{'[{ "label": "Note", "from": 15, "to": 18 }]'}</code>, per page{' '}
+        <code className="text-indigo-400">{'[{ "page": 3, "label": "Note" }]'}</code>, a flat{' '}
+        <code className="text-indigo-400">{'{ "3": "Note" }'}</code> map, or a blob export with a{' '}
+        <code className="text-indigo-400">pages</code> array.
+      </p>
+
+      <JsonSource
+        fileName={fileName}
+        onLoad={handleLoad}
+        onError={msg => { setParseError(msg); setUpdates(null); setResult(null) }}
+        onDownloadCurrent={detail ? () => downloadJson(toLabelRuns(pages), `${fileStem(pkg)}_classifications.json`) : null}
+      />
+
+      {parseError && <DialogMessage>{parseError}</DialogMessage>}
+      {error && <DialogMessage>{error}</DialogMessage>}
+      {detail === undefined && <div className="text-xs text-slate-500">Loading package pages...</div>}
+      {detail === null && <DialogMessage tone="amber">Could not load this package's pages. Close the dialog and try again.</DialogMessage>}
+      {detail && pages.length === 0 && <DialogMessage tone="amber">This package has no pages yet, so there is nothing to classify.</DialogMessage>}
+
+      {updates && detail && (
+        <>
+          <div className="flex items-center gap-4 text-[11px] text-slate-500 flex-wrap">
+            <span><span className="font-bold dark:text-white text-slate-900">{rows.length}</span> pages read</span>
+            <span><span className="font-bold text-emerald-400">{changed.length}</span> will change</span>
+            <span><span className="font-bold dark:text-white text-slate-900">{matched.length - changed.length}</span> unchanged</span>
+            {outside > 0 && <span><span className="font-bold text-amber-400">{outside}</span> beyond the package's {pages.length} pages (skipped)</span>}
+          </div>
+
+          <div className="overflow-hidden rounded-xl border dark:border-white/5 border-black/5 max-h-72 overflow-y-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-white/5 text-[10px] font-bold text-slate-500 uppercase tracking-widest sticky top-0">
+                <tr>
+                  <th className="px-4 py-3">Page</th>
+                  <th className="px-4 py-3">Current label</th>
+                  <th className="px-4 py-3">New label</th>
+                  <th className="px-4 py-3">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {shown.map(r => (
+                  <tr key={r.pageIndex} className={!r.matched ? 'opacity-50' : ''}>
+                    <td className="px-4 py-2 font-mono">{r.pageIndex + 1}</td>
+                    <td className="px-4 py-2 text-slate-400">{r.current || '—'}</td>
+                    <td className="px-4 py-2 font-semibold dark:text-white text-slate-900">{r.next}</td>
+                    <td className="px-4 py-2">
+                      {!r.matched ? <span className="text-amber-400">skipped</span>
+                        : r.changed ? <span className="text-emerald-400">update</span>
+                        : <span className="text-slate-500">unchanged</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {rows.length > shown.length && (
+              <p className="px-4 py-3 text-[11px] text-slate-500">+ {rows.length - shown.length} more pages</p>
+            )}
+          </div>
+
+          <label className="flex items-start gap-3 p-3 rounded-xl bg-white/5 cursor-pointer">
+            <input type="checkbox" checked={regroup} onChange={e => setRegroup(e.target.checked)} className="mt-0.5 accent-indigo-500" />
+            <span className="text-[11px] text-slate-400 leading-relaxed">
+              <span className="font-bold dark:text-white text-slate-900">Rebuild documents from these classifications</span>{' '}
+              — replaces the package's {plural(detail.documents.length, 'document')} with {plural(projectedDocs, 'document')} (one per run of consecutive pages with the same label).
+              Checklist answers and extracted values are kept; document names and verified status are reset.
+            </span>
+          </label>
+        </>
+      )}
+
+      {result && (
+        <DialogMessage tone="green">
+          Updated {plural(result.updated, 'page label')}
+          {result.unchanged ? `, ${result.unchanged} already matched` : ''}
+          {result.outsidePackage ? `, ${result.outsidePackage} skipped` : ''}
+          {result.documentsCreated != null ? `. Rebuilt ${plural(result.documentsCreated, 'document')}` : ''}.
+        </DialogMessage>
+      )}
+
+      <DialogActions
+        onClose={onClose}
+        onApply={apply}
+        canApply={canApply}
+        applying={applying}
+        done={!!result}
+        label={changed.length ? `Apply ${plural(changed.length, 'label update')}${regroup ? ' & rebuild' : ''}` : 'Rebuild documents'}
+      />
+    </PackageDialogShell>
+  )
+}
+
+// ── Extracted values JSON (parser + dialog) ──
+
+const EV_FIELD_KEYS = ['fieldName', 'field', 'field_name', 'name', 'key']
+const EV_VALUE_KEYS = ['extractedValue', 'value', 'extracted_value', 'val']
+const EV_DOC_KEYS = ['documentName', 'document', 'documentType', 'document_name', 'docType', 'doc']
+const EV_GROUP_KEYS = ['fields', 'values', 'extractedData', 'extracted_data', 'data']
+const EV_WRAPPER_KEYS = ['extractedValues', 'extracted_values', 'values', 'rows', 'items', 'data']
+
+const pickValue = (obj) => {
+  for (const k of EV_VALUE_KEYS) {
+    if (obj && Object.prototype.hasOwnProperty.call(obj, k)) return { found: true, value: obj[k] }
+  }
+  return { found: false }
+}
+
+const readTarget = (obj) => {
+  const t = {}
+  if (typeof obj?.pageId === 'string' && obj.pageId) t.pageId = obj.pageId
+  const idx = pickPageIndex(obj)
+  if (idx !== null) t.pageIndex = idx
+  const doc = pickLabel(obj, EV_DOC_KEYS)
+  if (doc) t.document = doc
+  return t
+}
+
+const hasTarget = (t) => !!(t.pageId || t.pageIndex !== undefined || t.document)
+const isPlainObject = (v) => !!v && typeof v === 'object' && !Array.isArray(v)
+
+// Turns a JSON into [{ target: { pageId? | pageIndex? | document? }, fieldName, value }]. Accepts:
+//   • rows [{ "page": 3, "fieldName": "Loan Amount", "value": "35000" }] (also pageId / pageIndex / document)
+//   • groups [{ "document": "Note", "fields": { "Loan Amount": "35000" } }] or [{ "page": 15, "fields": {...} }]
+//   • maps { "Note": { "Loan Amount": "35000" } } keyed by document name, or { "15": {...} } by page number
+function parseExtractedValues(raw, inherited = {}, depth = 0) {
+  const out = []
+  if (depth > 4) return out
+
+  if (Array.isArray(raw)) {
+    for (const entry of raw) {
+      if (Array.isArray(entry)) {
+        // [fieldName, value] pairs inside a page / document group
+        const [field, value] = entry
+        if (hasTarget(inherited) && typeof field === 'string' && field.trim()) out.push({ target: inherited, fieldName: field.trim(), value })
+        continue
+      }
+      if (!isPlainObject(entry)) continue
+      const target = { ...inherited, ...readTarget(entry) }
+      const groupKey = EV_GROUP_KEYS.find(k => isPlainObject(entry[k]) || Array.isArray(entry[k]))
+      if (groupKey && hasTarget(target)) {
+        out.push(...parseExtractedValues(entry[groupKey], target, depth + 1))
+        continue
+      }
+      const field = pickLabel(entry, EV_FIELD_KEYS)
+      const value = pickValue(entry)
+      if (field && value.found && hasTarget(target)) out.push({ target, fieldName: field, value: value.value })
+    }
+    return out
+  }
+
+  if (!isPlainObject(raw)) return out
+
+  if (!hasTarget(inherited)) {
+    const wrapper = EV_WRAPPER_KEYS.find(k => Array.isArray(raw[k]))
+    if (wrapper) return parseExtractedValues(raw[wrapper], inherited, depth + 1)
+    if (hasTarget(readTarget(raw)) && (pickLabel(raw, EV_FIELD_KEYS) || EV_GROUP_KEYS.some(k => isPlainObject(raw[k])))) {
+      return parseExtractedValues([raw], inherited, depth + 1)
+    }
+    // Map keyed by page number or document name
+    for (const [key, v] of Object.entries(raw)) {
+      if (!isPlainObject(v) && !Array.isArray(v)) continue
+      const m = String(key).trim().match(/^(?:p(?:age)?\.?\s*)?(\d+)$/i)
+      const target = m && Number(m[1]) >= 1 ? { pageIndex: Number(m[1]) - 1 } : { document: String(key).trim() }
+      out.push(...parseExtractedValues(v, target, depth + 1))
+    }
+    return out
+  }
+
+  // Inside a page / document: a { field: value } map
+  for (const [field, value] of Object.entries(raw)) {
+    if (field.trim()) out.push({ target: inherited, fieldName: field.trim(), value })
+  }
+  return out
+}
+
+const valueText = (v) => (v == null ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v))
+
+function PackageValuesDialog({ pkg, onClose, onApplied }) {
+  const [detail, reload] = usePackageDetail(pkg.id)
+  const [fileName, setFileName] = useState('')
+  const [entries, setEntries] = useState(null)
+  const [parseError, setParseError] = useState(null)
+  const [mode, setMode] = useState('merge')
+  const [applying, setApplying] = useState(false)
+  const [result, setResult] = useState(null)
+  const [error, setError] = useState(null)
+
+  const handleLoad = (raw, name) => {
+    setFileName(name)
+    setParseError(null)
+    setError(null)
+    setResult(null)
+    setEntries(null)
+    const list = parseExtractedValues(raw)
+    if (!list.length) return setParseError('No extracted values found in this JSON. Each value needs a page or document, a field name and a value.')
+    setEntries(list)
+  }
+
+  const pages = detail?.pages || []
+  const documents = detail?.documents || []
+  const pageById = new Map(pages.map(p => [p.id, p]))
+  const pageByIndex = new Map(pages.map(p => [p.pageIndex, p]))
+  const docByPage = new Map()
+  documents.forEach(d => d.pageIds.forEach(id => { if (!docByPage.has(id)) docByPage.set(id, d) }))
+  const norm = (s) => String(s || '').trim().toLowerCase()
+
+  const resolvePage = (t) => {
+    if (t.pageId) return pageById.get(t.pageId) || null
+    if (t.pageIndex !== undefined) return pageByIndex.get(t.pageIndex) || null
+    if (t.document) {
+      const want = norm(t.document)
+      const doc = documents.find(d => norm(d.documentType) === want) || documents.find(d => norm(d.name) === want)
+      if (doc?.pageIds?.length) return pageById.get(doc.pageIds[0]) || null
+      return pages.find(p => norm(p.aiLabel) === want) || null
+    }
+    return null
+  }
+
+  const current = new Map((detail?.extractedValues || []).map(v => [`${v.pageId}\u0000${v.fieldName}`, v]))
+
+  // Resolve, then dedupe (last entry wins per page + field)
+  const resolved = new Map()
+  const unresolved = []
+  for (const e of entries || []) {
+    const page = resolvePage(e.target)
+    if (!page) { unresolved.push(e); continue }
+    resolved.set(`${page.id}\u0000${e.fieldName}`, { ...e, page })
+  }
+  const rows = [...resolved.entries()].map(([key, e]) => {
+    const prev = current.get(key)
+    const prevText = prev ? (prev.qaValue ?? prev.extractedValue) : null
+    const nextText = valueText(e.value)
+    return {
+      key,
+      page: e.page,
+      document: docByPage.get(e.page.id)?.documentType || e.page.aiLabel || '—',
+      fieldName: e.fieldName,
+      current: prevText,
+      next: nextText,
+      isNew: !prev,
+      changed: !prev || prevText !== nextText || (prev.qaValue != null && prev.qaValue !== prev.extractedValue),
+    }
+  }).sort((a, b) => a.page.pageIndex - b.page.pageIndex || a.fieldName.localeCompare(b.fieldName))
+
+  const changedCount = rows.filter(r => r.changed).length
+  const removedCount = mode === 'replace' ? [...current.keys()].filter(k => !resolved.has(k)).length : 0
+  const canApply = !!detail && rows.length > 0 && (changedCount > 0 || removedCount > 0) && !result
+  const shown = rows.slice(0, 200)
+
+  const exportCurrent = () => {
+    const list = (detail?.extractedValues || [])
+      .map(v => ({ page: (pageById.get(v.pageId)?.pageIndex ?? -1) + 1, document: v.documentName, fieldName: v.fieldName, value: v.qaValue ?? v.extractedValue }))
+      .sort((a, b) => a.page - b.page || a.fieldName.localeCompare(b.fieldName))
+    downloadJson(list, `${fileStem(pkg)}_extracted_values.json`)
+  }
+
+  const apply = async () => {
+    setApplying(true)
+    setError(null)
+    try {
+      const values = rows.map(r => ({ pageId: r.page.id, fieldName: r.fieldName, value: r.next }))
+      const { data } = await adminSetPackageExtractedValues(pkg.id, { values, mode, source: fileName })
+      setResult(data.data)
+      reload()
+      onApplied()
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to set the extracted values')
+    } finally {
+      setApplying(false)
+    }
+  }
+
+  return (
+    <PackageDialogShell title="Extracted Values" pkg={pkg} onClose={onClose}>
+      <p className="text-[11px] text-slate-500 leading-relaxed">
+        Set extracted field values for this package. Target a value by 1-based <code className="text-indigo-400">page</code>,{' '}
+        <code className="text-indigo-400">pageId</code>, or <code className="text-indigo-400">document</code> name (it lands on that document's first page).
+        Accepted shapes: rows <code className="text-indigo-400">{'[{ "page": 38, "fieldName": "Loan Amount", "value": "35000" }]'}</code>, groups{' '}
+        <code className="text-indigo-400">{'[{ "document": "Note", "fields": { "Loan Amount": "35000" } }]'}</code>, or a map{' '}
+        <code className="text-indigo-400">{'{ "Closing Disclosure": { "Interest Rate": "8.5" } }'}</code> keyed by document name or page number.
+      </p>
+
+      <JsonSource
+        fileName={fileName}
+        onLoad={handleLoad}
+        onError={msg => { setParseError(msg); setEntries(null); setResult(null) }}
+        onDownloadCurrent={detail ? exportCurrent : null}
+      />
+
+      {parseError && <DialogMessage>{parseError}</DialogMessage>}
+      {error && <DialogMessage>{error}</DialogMessage>}
+      {detail === undefined && <div className="text-xs text-slate-500">Loading package...</div>}
+      {detail === null && <DialogMessage tone="amber">Could not load this package. Close the dialog and try again.</DialogMessage>}
+
+      {entries && detail && (
+        <>
+          <div className="flex items-center gap-4 text-[11px] text-slate-500 flex-wrap">
+            <span><span className="font-bold dark:text-white text-slate-900">{rows.length}</span> values matched</span>
+            <span><span className="font-bold text-sky-400">{rows.filter(r => r.isNew).length}</span> new</span>
+            <span><span className="font-bold text-emerald-400">{rows.filter(r => r.changed && !r.isNew).length}</span> updated</span>
+            <span><span className="font-bold dark:text-white text-slate-900">{rows.length - changedCount}</span> unchanged</span>
+            {unresolved.length > 0 && <span><span className="font-bold text-amber-400">{unresolved.length}</span> not matched to a page (skipped)</span>}
+            {removedCount > 0 && <span><span className="font-bold text-red-400">{removedCount}</span> existing values will be removed</span>}
+          </div>
+
+          {unresolved.length > 0 && (
+            <DialogMessage tone="amber">
+              Skipped targets: {[...new Set(unresolved.map(u => u.target.document || (u.target.pageIndex !== undefined ? `page ${u.target.pageIndex + 1}` : u.target.pageId)))].slice(0, 8).join(', ')}
+              {unresolved.length > 8 ? '…' : ''}
+            </DialogMessage>
+          )}
+
+          {rows.length > 0 && (
+            <div className="overflow-hidden rounded-xl border dark:border-white/5 border-black/5 max-h-72 overflow-y-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-white/5 text-[10px] font-bold text-slate-500 uppercase tracking-widest sticky top-0">
+                  <tr>
+                    <th className="px-4 py-3">Page</th>
+                    <th className="px-4 py-3">Document</th>
+                    <th className="px-4 py-3">Field</th>
+                    <th className="px-4 py-3">Current</th>
+                    <th className="px-4 py-3">New</th>
+                    <th className="px-4 py-3">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {shown.map(r => (
+                    <tr key={r.key} className={!r.changed ? 'opacity-60' : ''}>
+                      <td className="px-4 py-2 font-mono">{r.page.pageIndex + 1}</td>
+                      <td className="px-4 py-2 text-slate-400 max-w-[160px] truncate" title={r.document}>{r.document}</td>
+                      <td className="px-4 py-2 text-slate-300 max-w-[200px] truncate" title={r.fieldName}>{r.fieldName}</td>
+                      <td className="px-4 py-2 text-slate-500 max-w-[180px] truncate" title={r.current ?? ''}>{r.current ?? '—'}</td>
+                      <td className="px-4 py-2 font-semibold dark:text-white text-slate-900 max-w-[180px] truncate" title={r.next}>{r.next || '—'}</td>
+                      <td className="px-4 py-2 whitespace-nowrap">
+                        {r.isNew ? <span className="text-sky-400">new</span>
+                          : r.changed ? <span className="text-emerald-400">update</span>
+                          : <span className="text-slate-500">unchanged</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {rows.length > shown.length && (
+                <p className="px-4 py-3 text-[11px] text-slate-500">+ {rows.length - shown.length} more values</p>
+              )}
+            </div>
+          )}
+
+          <div className="flex items-center gap-2 text-[11px]">
+            <span className="text-slate-500 mr-1">Mode:</span>
+            {[['merge', 'Merge — only write these fields'], ['replace', 'Replace — remove all other values in this package']].map(([m, label]) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setMode(m)}
+                className={`px-3 py-1.5 rounded-lg font-bold transition-colors ${mode === m ? (m === 'replace' ? 'bg-red-500/15 text-red-400' : 'bg-indigo-500/15 text-indigo-400') : 'text-slate-500 hover:text-slate-300 bg-white/5'}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+
+      {result && (
+        <DialogMessage tone="green">
+          Wrote {plural(result.written, 'value')} across {plural(result.pages, 'page')}
+          {result.mode === 'replace' ? ` (removed ${result.replaced} previous values)` : ''}.
+        </DialogMessage>
+      )}
+
+      <DialogActions
+        onClose={onClose}
+        onApply={apply}
+        canApply={canApply}
+        applying={applying}
+        done={!!result}
+        label={mode === 'replace' ? `Replace with ${plural(rows.length, 'value')}` : `Apply ${plural(changedCount, 'value')}`}
+      />
+    </PackageDialogShell>
+  )
+}
+
+// ── Missing Document Checklist JSON (parser + dialog) ──
+
+const CL_NAME_KEYS = ['name', 'document', 'documentName', 'document_name', 'documentType', 'doc', 'item', 'label', 'question']
+const CL_ANSWER_KEYS = ['answer', 'status', 'category', 'available', 'value']
+const CL_COMMENT_KEYS = ['comment', 'notes', 'note', 'remark']
+
+const pickFrom = (obj, keys) => {
+  for (const k of keys) {
+    const v = obj?.[k]
+    if (v === undefined || v === null) continue
+    if (typeof v === 'string' && v.trim()) return v.trim()
+    if (typeof v === 'number' || typeof v === 'boolean') return String(v)
+  }
+  return null
+}
+
+const normaliseAnswer = (value) => {
+  if (value == null || value === '') return null
+  const s = String(value).trim()
+  if (/^(y|yes|true|1|available|present|found)$/i.test(s)) return 'Yes'
+  if (/^(n|no|false|0|missing|not\s*available|absent)$/i.test(s)) return 'No'
+  return s
+}
+
+// Keeps a supplied question verbatim if it reads like one, otherwise wraps it
+// the same way the seed scripts do: "Is <Document> Available In Package ?"
+const toQuestion = (name) => {
+  const trimmed = String(name).trim()
+  return /\?\s*$/.test(trimmed) ? trimmed : `Is ${trimmed} Available In Package ?`
+}
+
+// Turns a JSON into [{ question, answer, comment, flagged }]. Accepts:
+//   • report tuples ["Note", "YES"] or ["Note", "YES", "optional comment"]
+//   • objects [{ "document": "Note", "answer": "Yes", "comment": "...", "flagged": true }]
+//   • a flat map { "Note": "Yes" } or { "Note": { "answer": "No", "comment": "..." } }
+function parseChecklistFile(raw) {
+  const out = []
+  const push = (name, answer, comment, flagged) => {
+    const question = toQuestion(name)
+    if (question && question.length <= 300) {
+      out.push({
+        question,
+        answer: normaliseAnswer(answer),
+        comment: comment == null || comment === '' ? null : String(comment).slice(0, 500),
+        flagged: !!flagged,
+      })
+    }
+  }
+
+  if (Array.isArray(raw)) {
+    for (const entry of raw) {
+      if (Array.isArray(entry)) {
+        const [name, answer, comment] = entry
+        if (name != null && name !== '') push(name, answer, comment, false)
+        continue
+      }
+      if (entry && typeof entry === 'object') {
+        const name = pickFrom(entry, CL_NAME_KEYS)
+        if (!name) continue
+        push(name, pickFrom(entry, CL_ANSWER_KEYS), pickFrom(entry, CL_COMMENT_KEYS), entry.flagged === true || entry.flag === true)
+      }
+    }
+    return out
+  }
+
+  if (raw && typeof raw === 'object') {
+    // A wrapper such as { "checklists": [...] } or { "data": { "items": [...] } }
+    const nested = raw.checklists || raw.checklist || raw.items || raw.missing || raw.missingDocuments || raw.data
+    if (Array.isArray(nested) && nested.length && (Array.isArray(nested[0]) || typeof nested[0] === 'object')) {
+      return parseChecklistFile(nested)
+    }
+    for (const [name, value] of Object.entries(raw)) {
+      if (value && typeof value === 'object' && !Array.isArray(value)) {
+        push(name, pickFrom(value, CL_ANSWER_KEYS), pickFrom(value, CL_COMMENT_KEYS), value.flagged === true || value.flag === true)
+      } else {
+        push(name, value, null, false)
+      }
+    }
+  }
+  return out
+}
+
+function PackageChecklistDialog({ pkg, onClose, onApplied }) {
+  const [detail, reload] = usePackageDetail(pkg.id)
+  const [fileName, setFileName] = useState('')
+  const [items, setItems] = useState(null)
+  const [parseError, setParseError] = useState(null)
+  const [replace, setReplace] = useState(false)
+  const [applying, setApplying] = useState(false)
+  const [result, setResult] = useState(null)
+  const [error, setError] = useState(null)
+
+  const handleLoad = (raw, name) => {
+    setFileName(name)
+    setParseError(null)
+    setError(null)
+    setResult(null)
+    setItems(null)
+    const list = parseChecklistFile(raw)
+    if (!list.length) return setParseError('No checklist items found in this JSON')
+    const deduped = new Map()
+    list.forEach(i => deduped.set(i.question, i)) // last entry wins
+    setItems([...deduped.values()])
+  }
+
+  const existing = detail?.checklist || []
+  const docCount = detail?.documents?.length || 0
+  const existingByQuestion = new Map(existing.map(r => [r.question, r]))
+  const rows = (items || []).map(i => {
+    const prev = existingByQuestion.get(i.question)
+    return {
+      ...i,
+      current: prev ? prev.answer : null,
+      mixed: !!prev?.mixed,
+      exists: !!prev,
+      changed: !prev
+        || prev.mixed
+        || prev.documents < docCount
+        || (prev.answer || '') !== (i.answer || '')
+        || (prev.comment || '') !== (i.comment || '')
+        || !!prev.flagged !== !!i.flagged,
+    }
+  })
+  const incoming = new Set((items || []).map(i => i.question))
+  const removed = replace ? existing.filter(e => !incoming.has(e.question)) : []
+  const toApply = rows.filter(r => r.changed)
+  const canApply = !!items && docCount > 0 && (toApply.length > 0 || removed.length > 0) && !result
+  const shown = rows.slice(0, 200)
+
+  const exportCurrent = () => downloadJson(
+    existing.map(e => ({ question: e.question, answer: e.answer, ...(e.comment ? { comment: e.comment } : {}), ...(e.flagged ? { flagged: true } : {}) })),
+    `${fileStem(pkg)}_missing_checklist.json`
+  )
+
+  const apply = async () => {
+    setApplying(true)
+    setError(null)
+    try {
+      const { data } = await adminSetPackageChecklist(pkg.id, { items, replace, source: fileName })
+      setResult(data.data)
+      reload()
+      onApplied()
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to set the Missing Document Checklist')
+    } finally {
+      setApplying(false)
+    }
+  }
+
+  return (
+    <PackageDialogShell title="Missing Document Checklist" pkg={pkg} onClose={onClose}>
+      <p className="text-[11px] text-slate-500 leading-relaxed">
+        Set the checklist answers for <span className="font-semibold dark:text-white text-slate-900">this package</span> — they apply to every document in it.
+        Accepted shapes: report tuples <code className="text-indigo-400">{'[["Note", "YES"], ...]'}</code>, objects{' '}
+        <code className="text-indigo-400">{'[{ "document": "Note", "answer": "Yes" }]'}</code> (optional <code className="text-indigo-400">comment</code> / <code className="text-indigo-400">flagged</code>), or a flat{' '}
+        <code className="text-indigo-400">{'{ "Note": "Yes" }'}</code> map. Each entry becomes the question{' '}
+        <code className="text-indigo-400">Is &lt;Document&gt; Available In Package ?</code> unless it already ends with a question mark.
+      </p>
+
+      <JsonSource
+        fileName={fileName}
+        onLoad={handleLoad}
+        onError={msg => { setParseError(msg); setItems(null); setResult(null) }}
+        onDownloadCurrent={detail && existing.length ? exportCurrent : null}
+      />
+
+      {parseError && <DialogMessage>{parseError}</DialogMessage>}
+      {error && <DialogMessage>{error}</DialogMessage>}
+      {detail === undefined && <div className="text-xs text-slate-500">Loading package...</div>}
+      {detail === null && <DialogMessage tone="amber">Could not load this package. Close the dialog and try again.</DialogMessage>}
+      {detail && docCount === 0 && (
+        <DialogMessage tone="amber">This package has no documents yet. Classify its pages (and rebuild documents) first, then set the checklist.</DialogMessage>
+      )}
+
+      {items && detail && (
+        <>
+          <div className="flex items-center gap-4 text-[11px] text-slate-500 flex-wrap">
+            <span><span className="font-bold dark:text-white text-slate-900">{rows.length}</span> questions read</span>
+            <span><span className="font-bold text-emerald-400">{toApply.length}</span> to apply</span>
+            <span><span className="font-bold dark:text-white text-slate-900">{rows.length - toApply.length}</span> already matching</span>
+            <span><span className="font-bold text-sky-400">{rows.filter(r => !r.exists).length}</span> new for this package</span>
+            {removed.length > 0 && <span><span className="font-bold text-red-400">{removed.length}</span> will be removed</span>}
+            <span>across <span className="font-bold dark:text-white text-slate-900">{plural(docCount, 'document')}</span></span>
+          </div>
+
+          <div className="overflow-hidden rounded-xl border dark:border-white/5 border-black/5 max-h-72 overflow-y-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-white/5 text-[10px] font-bold text-slate-500 uppercase tracking-widest sticky top-0">
+                <tr>
+                  <th className="px-4 py-3">Question</th>
+                  <th className="px-4 py-3">Current</th>
+                  <th className="px-4 py-3">New</th>
+                  <th className="px-4 py-3">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {shown.map(r => (
+                  <tr key={r.question} className={!r.changed ? 'opacity-60' : ''}>
+                    <td className="px-4 py-2 text-slate-300 max-w-[360px]" title={r.question}>{r.question}</td>
+                    <td className="px-4 py-2 text-slate-500 whitespace-nowrap">{r.current || '—'}{r.mixed && <span className="ml-1 text-amber-400">(mixed)</span>}</td>
+                    <td className="px-4 py-2 font-semibold dark:text-white text-slate-900 whitespace-nowrap">
+                      {r.answer || '—'}
+                      {r.flagged && <span className="ml-1 text-amber-400">⚑</span>}
+                    </td>
+                    <td className="px-4 py-2 whitespace-nowrap">
+                      {!r.exists ? <span className="text-sky-400">new</span>
+                        : r.changed ? <span className="text-emerald-400">update</span>
+                        : <span className="text-slate-500">unchanged</span>}
+                    </td>
+                  </tr>
+                ))}
+                {removed.map(r => (
+                  <tr key={`rm-${r.question}`} className="opacity-60">
+                    <td className="px-4 py-2 text-slate-400 line-through max-w-[360px]" title={r.question}>{r.question}</td>
+                    <td className="px-4 py-2 text-slate-500 whitespace-nowrap">{r.answer || '—'}</td>
+                    <td className="px-4 py-2 text-slate-500">—</td>
+                    <td className="px-4 py-2 text-red-400 whitespace-nowrap">remove</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {rows.length > shown.length && (
+              <p className="px-4 py-3 text-[11px] text-slate-500">+ {rows.length - shown.length} more questions</p>
+            )}
+          </div>
+
+          {existing.length > 0 && (
+            <label className="flex items-start gap-3 p-3 rounded-xl bg-white/5 cursor-pointer">
+              <input type="checkbox" checked={replace} onChange={e => setReplace(e.target.checked)} className="mt-0.5 accent-indigo-500" />
+              <span className="text-[11px] text-slate-400 leading-relaxed">
+                <span className="font-bold dark:text-white text-slate-900">Replace the package's checklist</span>{' '}
+                — remove answers for questions that are not in this JSON.
+              </span>
+            </label>
+          )}
+        </>
+      )}
+
+      {result && (
+        <DialogMessage tone="green">
+          Set {plural(result.total, 'checklist answer')} on {plural(result.documents, 'document')}
+          {result.createdQuestions ? `, ${plural(result.createdQuestions, 'new question')} created` : ''}
+          {result.removedQuestions ? `, ${result.removedQuestions} removed` : ''}.
+        </DialogMessage>
+      )}
+
+      <DialogActions
+        onClose={onClose}
+        onApply={apply}
+        canApply={canApply}
+        applying={applying}
+        done={!!result}
+        label={`Apply ${plural(toApply.length, 'checklist answer')}${removed.length ? ` & remove ${removed.length}` : ''}`}
+      />
+    </PackageDialogShell>
   )
 }
 

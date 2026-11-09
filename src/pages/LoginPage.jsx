@@ -18,7 +18,7 @@ export default function LoginPage() {
     setBusy(true)
     const success = await login(email, password)
     if (success) {
-      showToast('Welcome back to Workbench', 'success')
+      showToast('Welcome back to EasyDocs', 'success')
       const loggedInUser = useAuthStore.getState().user
       if (loggedInUser?.role === 'ADMIN') {
         navigate('/admin')
@@ -39,8 +39,7 @@ export default function LoginPage() {
            <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-2xl shadow-indigo-600/40 mb-6">
               <FileText className="w-8 h-8 dark:text-white text-slate-900" />
            </div>
-           <h1 className="text-3xl font-bold dark:text-white text-slate-900 tracking-tight">IDP Workbench</h1>
-           <p className="text-slate-500 mt-2">Intelligent Document Processing</p>
+           <h1 className="text-3xl font-bold dark:text-white text-slate-900 tracking-tight">EasyDocs</h1>
         </div>
 
         {/* Card */}
@@ -96,7 +95,7 @@ export default function LoginPage() {
               {busy ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
-                <>Sign into Workbench <ArrowRight className="w-4 h-4" /></>
+                <>Sign into EasyDocs <ArrowRight className="w-4 h-4" /></>
               )}
             </button>
           </form>
